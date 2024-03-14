@@ -66,7 +66,6 @@ export const CONNECT_SMARTSHIP = () => {
     client_secret: config.SMART_SHIP_CLIENT_SECRET,
     grant_type: config.SMART_SHIP_GRANT_TYPE,
   };
-
   axios
     .post("https://oauth.smartship.in/loginToken.php", requestBody)
     .then((r) => {
@@ -77,14 +76,15 @@ export const CONNECT_SMARTSHIP = () => {
         .then(() => {
           //@ts-ignore
           const token = `${savedEnv?.token_type} ${savedEnv?.access_token}`;
-          redis.set("token:smartship", token);
-          redis.expire("token:smartship", 3600, (err) => {
-            if (err) {
-              Logger.warn(err);
-            } else {
-              Logger.log("smartship token cached.");
-            }
-          });
+          console.log("token: ", token);
+          // redis.set("token:smartship", token);
+          // redis.expire("token:smartship", 3600, (err) => {
+          //   if (err) {
+          //     Logger.warn(err);
+          //   } else {
+          //     Logger.log("smartship token cached.");
+          //   }
+          // });
           savedEnv
             .save()
             .then((r) => {
@@ -128,14 +128,14 @@ export const CONNECT_SMARTR = async (): Promise<void> => {
       const env = new EnvModel({ name: "SMARTR", ...responseJSON });
       //@ts-ignore
       const token = env?.data?.token_type + " " + env?.data?.access_token;
-      redis.set("token:smartr", token);
-      redis.expire("token:smartr", 36000, (err, next) => {
-        if (err) {
-          Logger.warn("failed to set ttl to token:smartr");
-        } else {
-          Logger.log("SMARTr, ttl expiration set");
-        }
-      });
+      // redis.set("token:smartr", token);
+      // redis.expire("token:smartr", 36000, (err, next) => {
+      //   if (err) {
+      //     Logger.warn("failed to set ttl to token:smartr");
+      //   } else {
+      //     Logger.log("SMARTr, ttl expiration set");
+      //   }
+      // });
       const savedEnv = await env.save();
       Logger.plog("SMARTR LOGGEDIN: " + JSON.stringify(savedEnv));
       // }

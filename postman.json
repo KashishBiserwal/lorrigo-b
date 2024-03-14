@@ -1,0 +1,979 @@
+{
+    "collection": {
+        "info": {
+            "_postman_id": "43e0c244-ee8a-4e6c-a5a6-ab5da4a9bcd7",
+            "name": "Lorrigo",
+            "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+            "updatedAt": "2024-02-22T09:43:42.000Z",
+            "uid": "27213613-43e0c244-ee8a-4e6c-a5a6-ab5da4a9bcd7",
+            "createdAt": null,
+            "lastUpdatedBy": null
+        },
+        "item": [
+            {
+                "name": "auth",
+                "item": [
+                    {
+                        "name": "signup",
+                        "id": "a2944920-1a0e-4a00-9333-7b2916e069e6",
+                        "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                        },
+                        "request": {
+                            "method": "POST",
+                            "header": [],
+                            "body": {
+                                "mode": "raw",
+                                "raw": "{\n    \"name\": \"kapil rohilla\",\n    \"email\": \"kapilrohilla2002@gmail.com\",\n    \"password\": \"12345678\"\n}",
+                                "options": {
+                                    "raw": {
+                                        "language": "json"
+                                    }
+                                }
+                            },
+                            "url": {
+                                "raw": "{{baseUrl}}/auth/signup",
+                                "host": [
+                                    "{{baseUrl}}"
+                                ],
+                                "path": [
+                                    "auth",
+                                    "signup"
+                                ]
+                            }
+                        },
+                        "response": [],
+                        "uid": "27213613-a2944920-1a0e-4a00-9333-7b2916e069e6"
+                    },
+                    {
+                        "name": "login",
+                        "id": "855d58ef-842a-4577-9b30-c69cebcae227",
+                        "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                        },
+                        "request": {
+                            "method": "POST",
+                            "header": [],
+                            "body": {
+                                "mode": "raw",
+                                "raw": "{\n    \"email\": \"kapilrohilla35@gmail.com\",\n    \"password\": \"12345678\"\n}",
+                                "options": {
+                                    "raw": {
+                                        "language": "json"
+                                    }
+                                }
+                            },
+                            "url": {
+                                "raw": "{{baseUrl}}/auth/login",
+                                "host": [
+                                    "{{baseUrl}}"
+                                ],
+                                "path": [
+                                    "auth",
+                                    "login"
+                                ]
+                            }
+                        },
+                        "response": [],
+                        "uid": "27213613-855d58ef-842a-4577-9b30-c69cebcae227"
+                    }
+                ],
+                "id": "a0685ddc-4a34-484d-9c8c-48d2413a4f14",
+                "uid": "27213613-a0685ddc-4a34-484d-9c8c-48d2413a4f14"
+            },
+            {
+                "name": "orders",
+                "item": [
+                    {
+                        "name": "create_b2c_order",
+                        "id": "bb16f521-b5ad-47a7-a735-0cdb74dd52f0",
+                        "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                        },
+                        "request": {
+                            "method": "POST",
+                            "header": [
+                                {
+                                    "key": "Authorization",
+                                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NWVlOTFiOWI2MzQzZDQ2NTliMGQ5YTYiLCJuYW1lIjoia2FwaWwgcm9oaWxsYSIsImVtYWlsIjoia2FwaWxyb2hpbGxhMzVAZ21haWwuY29tIiwicGFzc3dvcmQiOiIkMmIkMTAkaGU0Q3REa1J6NWpMYzdSbngvZEdtZVJaRURucnhPcW4uUXJOOHNEZFloYjE0MGF2M2FQdWUiLCJ3YWxsZXRCYWxhbmNlIjowLCJtYXJnaW4iOjIwLCJ2ZW5kb3JzIjpbIjY1ZDM0M2UzYWY4MjllOTA1ZjdhODhmOSIsIjY1ZDM0NGE2YWY4MjllOTA1ZjdhODhmYiIsIjY1ZDM0NTIyYWY4MjllOTA1ZjdhODhmZCJdLCJjb2RQcmljZSI6NDAsImlzVmVyaWZpZWQiOmZhbHNlLCJfX3YiOjAsImlhdCI6MTcxMDEzMzcwMSwiZXhwIjoxNzEwNzM4NTAxfQ.mO9_uHg3_StgVddQd7L4TFPR7jSc9dvKSryny41rh40",
+                                    "type": "text"
+                                }
+                            ],
+                            "body": {
+                                "mode": "raw",
+                                "raw": "{\n  \"order_reference_id\": \"L11\",\n  \"total_order_value\": \"100\",\n  \"payment_mode\": 1,\n  \"orderWeight\": 10,\n  \"orderWeightUnit\": \"kg\",\n  \"order_invoice_date\": \"10-02-2024\",\n  \"order_invoice_number\": 12,\n  \"numberOfBoxes\": 2,\n   \"orderSizeUnit\": \"cm\",\n  \"orderBoxHeight\": 20,\n  \"orderBoxWidth\": 20,\n  \"orderBoxLength\": 20,\n  \"amount2Collect\": 10,\n  \"customerDetails\": {\n    \"name\": \"kapil\",\n    \"email\": \"kapilrohilla2002@gmail.com\",\n    \"phone\": \"8287842425\",\n    \"address\": \"Ashok Vihar Phase 3\",\n    \"city\": \"gurugram\", \n    \"pincode\": 123034\n  },\n  \"productDetails\": {\n    \"name\": \"Product\",\n    \"category\": \"Nothing\",\n    \"hsn_code\": 5202,\n    \"quantity\": 1,\n    \"taxRate\": 5,\n    \"taxableValue\": 10\n  \n  },\n  \"pickupAddress\": \"65ee9afc3ef6c95b8b4c6e9a\"\n}",
+                                "options": {
+                                    "raw": {
+                                        "language": "json"
+                                    }
+                                }
+                            },
+                            "url": {
+                                "raw": "{{baseUrl}}/order/b2c",
+                                "host": [
+                                    "{{baseUrl}}"
+                                ],
+                                "path": [
+                                    "order",
+                                    "b2c"
+                                ]
+                            }
+                        },
+                        "response": [],
+                        "uid": "27213613-bb16f521-b5ad-47a7-a735-0cdb74dd52f0"
+                    },
+                    {
+                        "name": "get_orders",
+                        "id": "2d752564-0d8d-4394-a539-4e15ea57faf7",
+                        "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                        },
+                        "request": {
+                            "method": "GET",
+                            "header": [
+                                {
+                                    "key": "Authorization",
+                                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NWVlOTFiOWI2MzQzZDQ2NTliMGQ5YTYiLCJuYW1lIjoia2FwaWwgcm9oaWxsYSIsImVtYWlsIjoia2FwaWxyb2hpbGxhMzVAZ21haWwuY29tIiwicGFzc3dvcmQiOiIkMmIkMTAkaGU0Q3REa1J6NWpMYzdSbngvZEdtZVJaRURucnhPcW4uUXJOOHNEZFloYjE0MGF2M2FQdWUiLCJ3YWxsZXRCYWxhbmNlIjowLCJtYXJnaW4iOjIwLCJ2ZW5kb3JzIjpbIjY1ZDM0M2UzYWY4MjllOTA1ZjdhODhmOSIsIjY1ZDM0NGE2YWY4MjllOTA1ZjdhODhmYiIsIjY1ZDM0NTIyYWY4MjllOTA1ZjdhODhmZCJdLCJjb2RQcmljZSI6NDAsImlzVmVyaWZpZWQiOmZhbHNlLCJfX3YiOjAsImlhdCI6MTcxMDEzNjU0OCwiZXhwIjoxNzEwNzQxMzQ4fQ.lfTVSvLdxFX2gNWjK_D7Lu8ssrAkhtb-o6rzif-r6fs",
+                                    "type": "text"
+                                }
+                            ],
+                            "url": {
+                                "raw": "{{baseUrl}}/order?limit=100&page=1",
+                                "host": [
+                                    "{{baseUrl}}"
+                                ],
+                                "path": [
+                                    "order"
+                                ],
+                                "query": [
+                                    {
+                                        "key": "limit",
+                                        "value": "100"
+                                    },
+                                    {
+                                        "key": "page",
+                                        "value": "1"
+                                    }
+                                ]
+                            }
+                        },
+                        "response": [],
+                        "uid": "27213613-2d752564-0d8d-4394-a539-4e15ea57faf7"
+                    },
+                    {
+                        "name": "create_b2b_order",
+                        "event": [
+                            {
+                                "listen": "test",
+                                "script": {
+                                    "id": "ac1f9f17-23a7-499f-afd3-85d5ebbc698b",
+                                    "exec": [
+                                        ""
+                                    ],
+                                    "type": "text/javascript"
+                                }
+                            }
+                        ],
+                        "id": "ed06b226-d2d5-4bc3-be90-781320902be2",
+                        "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                        },
+                        "request": {
+                            "method": "POST",
+                            "header": [
+                                {
+                                    "key": "Authorization",
+                                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NWViZjAzMjZlNGQ1ZjBkZDAyNjc4OGEiLCJuYW1lIjoia2FwaWwgcm9oaWxsYSIsImVtYWlsIjoia2FwaWxyb2hpbGxhMzVAZ21haWwuY29tIiwicGFzc3dvcmQiOiIkMmIkMTAkQzJ5V01BdkpZaGwxT05EVFdnVDNzT1o2eEtDN1R4SEF3bXFQLklzYzR5VVpkMElEWmJab3UiLCJ3YWxsZXRCYWxhbmNlIjowLCJtYXJnaW4iOjIwLCJ2ZW5kb3JzIjpbIjY1ZDM0M2UzYWY4MjllOTA1ZjdhODhmOSIsIjY1ZDM0NGE2YWY4MjllOTA1ZjdhODhmYiIsIjY1ZDM0NTIyYWY4MjllOTA1ZjdhODhmZCJdLCJjb2RQcmljZSI6NDAsImlzVmVyaWZpZWQiOmZhbHNlLCJfX3YiOjAsImlhdCI6MTcxMDA2OTI4MiwiZXhwIjoxNzEwNjc0MDgyfQ.L0yVLKbVbsefESc4K__-6kb3XGvndhxyCwYMx0t4aJk",
+                                    "type": "text"
+                                }
+                            ],
+                            "body": {
+                                "mode": "raw",
+                                "raw": "{\n  \"client_name\": \"kapil rohilla 1\",\n  \"freightType\": 0, // 0 -> paid, 1 -> toPay\n  \"pickupType\": 0, // 0 -> FM-Pickup, 1 -> SelfDrop\n  \"InsuranceType\": 0, // 0-> OwnerRisk, 1-> Carrier Risk\n  \"pickupAddress\": \"65d9cbc1fcec6cb0141b60ef\",\n  \"invoiceNumber\": 0,\n  \"description\": \"this is firest b2b order\",\n  \"totalOrderValue\": 1000,\n  \"amount2Collect\": 0,\n  \"shipperGSTIN\": \"1234567890\",\n  \"consigneeGSTIN\": \"12345678\",\n  \"packageDetails\": [\n    {\n      \"boxLength\": 10,\n      \"boxHeight\": 10,\n      \"boxWidth\": 10,\n      \"boxSizeUnit\": \"m\", // should be either cm or m\n      \"boxWeight\": 20,\n      \"boxWeightUnit\": \"kg\", // should be either g or kg\n      \"invoiceNumber\": 123456,\n      \"description\": \"this is firest b2b products\",\n      \"quantity\": 5\n    }\n  ],\n  \"eways\": [{\n    \"amount\": 102020,\n    \"ewayBill\": 10239120,\n    \"invoiceNumber\": 102938410293\n  }],\n  \"customerDetails\": \"65eff3e1466c502849fe8cf5\"\n}",
+                                "options": {
+                                    "raw": {
+                                        "language": "json"
+                                    }
+                                }
+                            },
+                            "url": {
+                                "raw": "{{baseUrl}}/order/b2b",
+                                "host": [
+                                    "{{baseUrl}}"
+                                ],
+                                "path": [
+                                    "order",
+                                    "b2b"
+                                ]
+                            }
+                        },
+                        "response": [],
+                        "uid": "27213613-ed06b226-d2d5-4bc3-be90-781320902be2"
+                    },
+                    {
+                        "name": "getCourier",
+                        "id": "5fe12cb7-bbf1-43be-a514-8920a9440cf8",
+                        "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                        },
+                        "request": {
+                            "method": "GET",
+                            "header": [
+                                {
+                                    "key": "Authorization",
+                                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NWViZjAzMjZlNGQ1ZjBkZDAyNjc4OGEiLCJuYW1lIjoia2FwaWwgcm9oaWxsYSIsImVtYWlsIjoia2FwaWxyb2hpbGxhMzVAZ21haWwuY29tIiwicGFzc3dvcmQiOiIkMmIkMTAkQzJ5V01BdkpZaGwxT05EVFdnVDNzT1o2eEtDN1R4SEF3bXFQLklzYzR5VVpkMElEWmJab3UiLCJ3YWxsZXRCYWxhbmNlIjowLCJtYXJnaW4iOjIwLCJ2ZW5kb3JzIjpbIjY1ZDM0M2UzYWY4MjllOTA1ZjdhODhmOSIsIjY1ZDM0NGE2YWY4MjllOTA1ZjdhODhmYiIsIjY1ZDM0NTIyYWY4MjllOTA1ZjdhODhmZCJdLCJjb2RQcmljZSI6NDAsImlzVmVyaWZpZWQiOmZhbHNlLCJfX3YiOjAsImlhdCI6MTcwOTk2MTI5MiwiZXhwIjoxNzEwNTY2MDkyfQ.lssJ40GAo2Hu0u5abUznHj0uE13Fr6RIOjQJ3o8v8NQ",
+                                    "type": "text"
+                                }
+                            ],
+                            "url": {
+                                "raw": "{{baseUrl}}/order/courier/b2c/65ee9b0c3ef6c95b8b4c6ea4",
+                                "host": [
+                                    "{{baseUrl}}"
+                                ],
+                                "path": [
+                                    "order",
+                                    "courier",
+                                    "b2c",
+                                    "65ee9b0c3ef6c95b8b4c6ea4"
+                                ]
+                            }
+                        },
+                        "response": [],
+                        "uid": "27213613-5fe12cb7-bbf1-43be-a514-8920a9440cf8"
+                    },
+                    {
+                        "name": "getSpecificOrder",
+                        "id": "19bf3402-08f6-472c-8f81-60776c8ee423",
+                        "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                        },
+                        "request": {
+                            "method": "GET",
+                            "header": [
+                                {
+                                    "key": "Authorization",
+                                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NWVlOTFiOWI2MzQzZDQ2NTliMGQ5YTYiLCJuYW1lIjoia2FwaWwgcm9oaWxsYSIsImVtYWlsIjoia2FwaWxyb2hpbGxhMzVAZ21haWwuY29tIiwicGFzc3dvcmQiOiIkMmIkMTAkaGU0Q3REa1J6NWpMYzdSbngvZEdtZVJaRURucnhPcW4uUXJOOHNEZFloYjE0MGF2M2FQdWUiLCJ3YWxsZXRCYWxhbmNlIjowLCJtYXJnaW4iOjIwLCJ2ZW5kb3JzIjpbIjY1ZDM0M2UzYWY4MjllOTA1ZjdhODhmOSIsIjY1ZDM0NGE2YWY4MjllOTA1ZjdhODhmYiIsIjY1ZDM0NTIyYWY4MjllOTA1ZjdhODhmZCJdLCJjb2RQcmljZSI6NDAsImlzVmVyaWZpZWQiOmZhbHNlLCJfX3YiOjAsImlhdCI6MTcxMDEzNjExOCwiZXhwIjoxNzEwNzQwOTE4fQ.ShTe0vrAmtrcUCFoeYVAv-M8DxKlReUO2B2Uq7VGzUQ",
+                                    "type": "text"
+                                }
+                            ],
+                            "url": {
+                                "raw": "{{baseUrl}}/order/65ee9b0c3ef6c95b8b4c6ea4",
+                                "host": [
+                                    "{{baseUrl}}"
+                                ],
+                                "path": [
+                                    "order",
+                                    "65ee9b0c3ef6c95b8b4c6ea4"
+                                ]
+                            }
+                        },
+                        "response": [],
+                        "uid": "27213613-19bf3402-08f6-472c-8f81-60776c8ee423"
+                    }
+                ],
+                "id": "6098807c-b433-4a4d-beec-90e752024a25",
+                "uid": "27213613-6098807c-b433-4a4d-beec-90e752024a25"
+            },
+            {
+                "name": "hub",
+                "item": [
+                    {
+                        "name": "createHub",
+                        "id": "bd064739-646f-4055-9d47-8482235e4ebd",
+                        "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                        },
+                        "request": {
+                            "method": "POST",
+                            "header": [
+                                {
+                                    "key": "Authorization",
+                                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NWVlOTFiOWI2MzQzZDQ2NTliMGQ5YTYiLCJuYW1lIjoia2FwaWwgcm9oaWxsYSIsImVtYWlsIjoia2FwaWxyb2hpbGxhMzVAZ21haWwuY29tIiwicGFzc3dvcmQiOiIkMmIkMTAkaGU0Q3REa1J6NWpMYzdSbngvZEdtZVJaRURucnhPcW4uUXJOOHNEZFloYjE0MGF2M2FQdWUiLCJ3YWxsZXRCYWxhbmNlIjowLCJtYXJnaW4iOjIwLCJ2ZW5kb3JzIjpbIjY1ZDM0M2UzYWY4MjllOTA1ZjdhODhmOSIsIjY1ZDM0NGE2YWY4MjllOTA1ZjdhODhmYiIsIjY1ZDM0NTIyYWY4MjllOTA1ZjdhODhmZCJdLCJjb2RQcmljZSI6NDAsImlzVmVyaWZpZWQiOmZhbHNlLCJfX3YiOjAsImlhdCI6MTcxMDEzMzcwMSwiZXhwIjoxNzEwNzM4NTAxfQ.mO9_uHg3_StgVddQd7L4TFPR7jSc9dvKSryny41rh40",
+                                    "type": "text"
+                                }
+                            ],
+                            "body": {
+                                "mode": "raw",
+                                "raw": "{\n    \"name\": \"Delh35\",\n    \"pincode\": 804453,\n    \"address1\": \"G-167,Sector40 sdf\",\n    \"address2\": \"First Floor, Near Police Station \",\n    \"phone\": 8287842425\n}",
+                                "options": {
+                                    "raw": {
+                                        "language": "json"
+                                    }
+                                }
+                            },
+                            "url": {
+                                "raw": "{{baseUrl}}/hub",
+                                "host": [
+                                    "{{baseUrl}}"
+                                ],
+                                "path": [
+                                    "hub"
+                                ]
+                            }
+                        },
+                        "response": [],
+                        "uid": "27213613-bd064739-646f-4055-9d47-8482235e4ebd"
+                    },
+                    {
+                        "name": "getHubs",
+                        "id": "804ebb23-1c5c-4db0-bfa3-af4e42b0a323",
+                        "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                        },
+                        "request": {
+                            "method": "GET",
+                            "header": [
+                                {
+                                    "key": "Authorization",
+                                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NWVlOTFiOWI2MzQzZDQ2NTliMGQ5YTYiLCJuYW1lIjoia2FwaWwgcm9oaWxsYSIsImVtYWlsIjoia2FwaWxyb2hpbGxhMzVAZ21haWwuY29tIiwicGFzc3dvcmQiOiIkMmIkMTAkaGU0Q3REa1J6NWpMYzdSbngvZEdtZVJaRURucnhPcW4uUXJOOHNEZFloYjE0MGF2M2FQdWUiLCJ3YWxsZXRCYWxhbmNlIjowLCJtYXJnaW4iOjIwLCJ2ZW5kb3JzIjpbIjY1ZDM0M2UzYWY4MjllOTA1ZjdhODhmOSIsIjY1ZDM0NGE2YWY4MjllOTA1ZjdhODhmYiIsIjY1ZDM0NTIyYWY4MjllOTA1ZjdhODhmZCJdLCJjb2RQcmljZSI6NDAsImlzVmVyaWZpZWQiOmZhbHNlLCJfX3YiOjAsImlhdCI6MTcxMDEzMzcwMSwiZXhwIjoxNzEwNzM4NTAxfQ.mO9_uHg3_StgVddQd7L4TFPR7jSc9dvKSryny41rh40",
+                                    "type": "text"
+                                }
+                            ],
+                            "url": {
+                                "raw": "{{baseUrl}}/hub",
+                                "host": [
+                                    "{{baseUrl}}"
+                                ],
+                                "path": [
+                                    "hub"
+                                ]
+                            }
+                        },
+                        "response": [],
+                        "uid": "27213613-804ebb23-1c5c-4db0-bfa3-af4e42b0a323"
+                    },
+                    {
+                        "name": "specificHub",
+                        "id": "5351086f-b6b3-4c16-bd44-f96f695ee0a1",
+                        "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                        },
+                        "request": {
+                            "method": "GET",
+                            "header": [
+                                {
+                                    "key": "Authorization",
+                                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NWVlOTFiOWI2MzQzZDQ2NTliMGQ5YTYiLCJuYW1lIjoia2FwaWwgcm9oaWxsYSIsImVtYWlsIjoia2FwaWxyb2hpbGxhMzVAZ21haWwuY29tIiwicGFzc3dvcmQiOiIkMmIkMTAkaGU0Q3REa1J6NWpMYzdSbngvZEdtZVJaRURucnhPcW4uUXJOOHNEZFloYjE0MGF2M2FQdWUiLCJ3YWxsZXRCYWxhbmNlIjowLCJtYXJnaW4iOjIwLCJ2ZW5kb3JzIjpbIjY1ZDM0M2UzYWY4MjllOTA1ZjdhODhmOSIsIjY1ZDM0NGE2YWY4MjllOTA1ZjdhODhmYiIsIjY1ZDM0NTIyYWY4MjllOTA1ZjdhODhmZCJdLCJjb2RQcmljZSI6NDAsImlzVmVyaWZpZWQiOmZhbHNlLCJfX3YiOjAsImlhdCI6MTcxMDEzMzcwMSwiZXhwIjoxNzEwNzM4NTAxfQ.mO9_uHg3_StgVddQd7L4TFPR7jSc9dvKSryny41rh40",
+                                    "type": "text"
+                                }
+                            ],
+                            "url": {
+                                "raw": "{{baseUrl}}/hub/65ee9602854937a1ebfb5947",
+                                "host": [
+                                    "{{baseUrl}}"
+                                ],
+                                "path": [
+                                    "hub",
+                                    "65ee9602854937a1ebfb5947"
+                                ]
+                            }
+                        },
+                        "response": [],
+                        "uid": "27213613-5351086f-b6b3-4c16-bd44-f96f695ee0a1"
+                    },
+                    {
+                        "name": "updateHub",
+                        "id": "a4faf088-19b6-4832-89e6-979e6bada510",
+                        "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                        },
+                        "request": {
+                            "method": "PUT",
+                            "header": [
+                                {
+                                    "key": "Authorization",
+                                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NWQ5YzllMWJiMWIxOTM4NGFjM2UzMjAiLCJuYW1lIjoiS2FwaWwgcm9oaWxsYSIsImVtYWlsIjoia2FwaWxyb2hpbGxhMjAwMkBnbWFpbC5jb20iLCJwYXNzd29yZCI6IiQyYiQxMCRmdXBCOEVXYzRLVHhIRkxDaC5lSmQud1JNOFQ0Z2xoRENqcVAzLjJCOTVkNmlRaXU3d1M2NiIsIndhbGxldEJhbGFuY2UiOjAsIm1hcmdpbiI6MjAsInZlbmRvcnMiOlsiNjVkMzQzZTNhZjgyOWU5MDVmN2E4OGY5IiwiNjVkMzQ0YTZhZjgyOWU5MDVmN2E4OGZiIiwiNjVkMzQ1MjJhZjgyOWU5MDVmN2E4OGZkIl0sImNvZFByaWNlIjozMCwiaXNWZXJpZmllZCI6ZmFsc2UsIl9fdiI6MCwiaWF0IjoxNzA5MDA4ODE4LCJleHAiOjE3MDk2MTM2MTh9.HYZxlt4ac4LWWzjfEefpqaUwAeXbjaN_rt8G83xJW-w",
+                                    "type": "text"
+                                }
+                            ],
+                            "body": {
+                                "mode": "raw",
+                                "raw": "{\n  \"pincode\": \"122001\"\n}",
+                                "options": {
+                                    "raw": {
+                                        "language": "json"
+                                    }
+                                }
+                            },
+                            "url": {
+                                "raw": "{{baseUrl}}/hub/65d9cbc1fcec6cb0141b60ef",
+                                "host": [
+                                    "{{baseUrl}}"
+                                ],
+                                "path": [
+                                    "hub",
+                                    "65d9cbc1fcec6cb0141b60ef"
+                                ]
+                            }
+                        },
+                        "response": [],
+                        "uid": "27213613-a4faf088-19b6-4832-89e6-979e6bada510"
+                    },
+                    {
+                        "name": "deleteHub",
+                        "id": "10a9cd64-0e92-4a22-846a-898bb2ad87a1",
+                        "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                        },
+                        "request": {
+                            "method": "DELETE",
+                            "header": [
+                                {
+                                    "key": "Authorization",
+                                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NWVlOTFiOWI2MzQzZDQ2NTliMGQ5YTYiLCJuYW1lIjoia2FwaWwgcm9oaWxsYSIsImVtYWlsIjoia2FwaWxyb2hpbGxhMzVAZ21haWwuY29tIiwicGFzc3dvcmQiOiIkMmIkMTAkaGU0Q3REa1J6NWpMYzdSbngvZEdtZVJaRURucnhPcW4uUXJOOHNEZFloYjE0MGF2M2FQdWUiLCJ3YWxsZXRCYWxhbmNlIjowLCJtYXJnaW4iOjIwLCJ2ZW5kb3JzIjpbIjY1ZDM0M2UzYWY4MjllOTA1ZjdhODhmOSIsIjY1ZDM0NGE2YWY4MjllOTA1ZjdhODhmYiIsIjY1ZDM0NTIyYWY4MjllOTA1ZjdhODhmZCJdLCJjb2RQcmljZSI6NDAsImlzVmVyaWZpZWQiOmZhbHNlLCJfX3YiOjAsImlhdCI6MTcxMDEzMzcwMSwiZXhwIjoxNzEwNzM4NTAxfQ.mO9_uHg3_StgVddQd7L4TFPR7jSc9dvKSryny41rh40",
+                                    "type": "text"
+                                }
+                            ],
+                            "body": {
+                                "mode": "raw",
+                                "raw": "",
+                                "options": {
+                                    "raw": {
+                                        "language": "json"
+                                    }
+                                }
+                            },
+                            "url": {
+                                "raw": "{{baseUrl}}/hub/65ee9602854937a1ebfb5947",
+                                "host": [
+                                    "{{baseUrl}}"
+                                ],
+                                "path": [
+                                    "hub",
+                                    "65ee9602854937a1ebfb5947"
+                                ]
+                            }
+                        },
+                        "response": [],
+                        "uid": "27213613-10a9cd64-0e92-4a22-846a-898bb2ad87a1"
+                    }
+                ],
+                "id": "22d22b7c-a19c-4c1b-a164-f09e458f9fff",
+                "uid": "27213613-22d22b7c-a19c-4c1b-a164-f09e458f9fff"
+            },
+            {
+                "name": "utility",
+                "item": [
+                    {
+                        "name": "add vendors",
+                        "id": "a213eb95-4002-4892-a9b5-03c0a395e49c",
+                        "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                        },
+                        "request": {
+                            "method": "POST",
+                            "header": [],
+                            "body": {
+                                "mode": "raw",
+                                "raw": "{\n    \"name\": \"Xpressbees\",\n    \"weightSlab\": 0.5,\n    \"incrementWeight\": 0.5,\n    \"withinCity\": {\n        \"basePrice\": 25,\n        \"incrementPrice\": 27\n    },\n    \"withinZone\": {\n        \"basePrice\": 27,\n        \"incrementPrice\": 27\n    },\n    \"withinMetro\": {\n        \"basePrice\": 34,\n        \"incrementPrice\": 32\n    },\n    \"withinRoi\": {\n        \"basePrice\": 38,\n        \"incrementPrice\": 31\n    },\n    \"northEast\": {\n        \"basePrice\": 48,\n        \"incrementPrice\": 36\n    }\n}",
+                                "options": {
+                                    "raw": {
+                                        "language": "json"
+                                    }
+                                }
+                            },
+                            "url": {
+                                "raw": "{{baseUrl}}/vendor",
+                                "host": [
+                                    "{{baseUrl}}"
+                                ],
+                                "path": [
+                                    "vendor"
+                                ]
+                            }
+                        },
+                        "response": [],
+                        "uid": "27213613-a213eb95-4002-4892-a9b5-03c0a395e49c"
+                    },
+                    {
+                        "name": "getSellers",
+                        "id": "e21b85fe-cf6a-49c6-976f-4b8a5a5f3a2c",
+                        "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                        },
+                        "request": {
+                            "method": "GET",
+                            "header": [],
+                            "url": {
+                                "raw": "{{baseUrl}}/getsellers",
+                                "host": [
+                                    "{{baseUrl}}"
+                                ],
+                                "path": [
+                                    "getsellers"
+                                ]
+                            }
+                        },
+                        "response": [],
+                        "uid": "27213613-e21b85fe-cf6a-49c6-976f-4b8a5a5f3a2c"
+                    },
+                    {
+                        "name": "rate calculation",
+                        "id": "74d75bac-2566-4575-b4b5-fd4147dddf46",
+                        "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                        },
+                        "request": {
+                            "method": "POST",
+                            "header": [
+                                {
+                                    "key": "Authorization",
+                                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NWQ5YzllMWJiMWIxOTM4NGFjM2UzMjAiLCJuYW1lIjoiS2FwaWwgcm9oaWxsYSIsImVtYWlsIjoia2FwaWxyb2hpbGxhMjAwMkBnbWFpbC5jb20iLCJwYXNzd29yZCI6IiQyYiQxMCRmdXBCOEVXYzRLVHhIRkxDaC5lSmQud1JNOFQ0Z2xoRENqcVAzLjJCOTVkNmlRaXU3d1M2NiIsIndhbGxldEJhbGFuY2UiOjAsIm1hcmdpbiI6MjAsInZlbmRvcnMiOlsiNjVkMzQzZTNhZjgyOWU5MDVmN2E4OGY5IiwiNjVkMzQ0YTZhZjgyOWU5MDVmN2E4OGZiIiwiNjVkMzQ1MjJhZjgyOWU5MDVmN2E4OGZkIl0sImNvZFByaWNlIjozMCwiaXNWZXJpZmllZCI6ZmFsc2UsIl9fdiI6MCwiaWF0IjoxNzA5Mjg0ODE3LCJleHAiOjE3MDk4ODk2MTd9.k9bbNJP6mNzJkiJ0j6-jXpfWw4XczmoRjVTYzSX8tM4",
+                                    "type": "text"
+                                }
+                            ],
+                            "body": {
+                                "mode": "raw",
+                                "raw": "{\n  \"pickupPincode\": \"122001\",\n  \"deliveryPincode\": \"122001\",\n  \"weight\": 10,\n  \"weightUnit\":\"kg\",\n  \"boxLength\":100,\n  \"boxWidth\": 100,\n  \"boxHeight\":200,\n  \"sizeUnit\": \"cm\",\n  \"isFragileGoods\":false\n}",
+                                "options": {
+                                    "raw": {
+                                        "language": "json"
+                                    }
+                                }
+                            },
+                            "url": {
+                                "raw": "{{baseUrl}}/ratecalculator",
+                                "host": [
+                                    "{{baseUrl}}"
+                                ],
+                                "path": [
+                                    "ratecalculator"
+                                ]
+                            }
+                        },
+                        "response": [],
+                        "uid": "27213613-74d75bac-2566-4575-b4b5-fd4147dddf46"
+                    }
+                ],
+                "id": "4e9d7ac8-0111-465a-84b0-295615256e55",
+                "uid": "27213613-4e9d7ac8-0111-465a-84b0-295615256e55"
+            },
+            {
+                "name": "customer",
+                "item": [
+                    {
+                        "name": "createCustomer",
+                        "id": "75275e41-74ee-4386-849f-8e5a9a499974",
+                        "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                        },
+                        "request": {
+                            "method": "POST",
+                            "header": [
+                                {
+                                    "key": "Authorization",
+                                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NWVlOTFiOWI2MzQzZDQ2NTliMGQ5YTYiLCJuYW1lIjoia2FwaWwgcm9oaWxsYSIsImVtYWlsIjoia2FwaWxyb2hpbGxhMzVAZ21haWwuY29tIiwicGFzc3dvcmQiOiIkMmIkMTAkaGU0Q3REa1J6NWpMYzdSbngvZEdtZVJaRURucnhPcW4uUXJOOHNEZFloYjE0MGF2M2FQdWUiLCJ3YWxsZXRCYWxhbmNlIjowLCJtYXJnaW4iOjIwLCJ2ZW5kb3JzIjpbIjY1ZDM0M2UzYWY4MjllOTA1ZjdhODhmOSIsIjY1ZDM0NGE2YWY4MjllOTA1ZjdhODhmYiIsIjY1ZDM0NTIyYWY4MjllOTA1ZjdhODhmZCJdLCJjb2RQcmljZSI6NDAsImlzVmVyaWZpZWQiOmZhbHNlLCJfX3YiOjAsImlhdCI6MTcxMDIyNDMzMywiZXhwIjoxNzEwODI5MTMzfQ.hDUiJbjgbkcLsfIq5X2aYMOjmM9KC7pLsuFBN1_-iSA",
+                                    "type": "text"
+                                }
+                            ],
+                            "body": {
+                                "mode": "raw",
+                                "raw": "{\n  \"name\": \"kapil\",\n  \"phone\": \"1234567890\",\n  \"email\": \"kapilrohilla2002@gmail.com\",\n  \"address\":\"ashok vihar phase 3\",\n  \"state\": \"Haryana\",\n  \"city\":\"Gurugram\",\n  \"pincode\":\"122001\"\n}",
+                                "options": {
+                                    "raw": {
+                                        "language": "json"
+                                    }
+                                }
+                            },
+                            "url": {
+                                "raw": "{{baseUrl}}/customer",
+                                "host": [
+                                    "{{baseUrl}}"
+                                ],
+                                "path": [
+                                    "customer"
+                                ]
+                            }
+                        },
+                        "response": [],
+                        "uid": "27213613-75275e41-74ee-4386-849f-8e5a9a499974"
+                    },
+                    {
+                        "name": "getCustomer",
+                        "id": "df37d606-3771-4250-99d9-e4c20ffb28dd",
+                        "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                        },
+                        "request": {
+                            "method": "GET",
+                            "header": [
+                                {
+                                    "key": "Authorization",
+                                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NWVlOTFiOWI2MzQzZDQ2NTliMGQ5YTYiLCJuYW1lIjoia2FwaWwgcm9oaWxsYSIsImVtYWlsIjoia2FwaWxyb2hpbGxhMzVAZ21haWwuY29tIiwicGFzc3dvcmQiOiIkMmIkMTAkaGU0Q3REa1J6NWpMYzdSbngvZEdtZVJaRURucnhPcW4uUXJOOHNEZFloYjE0MGF2M2FQdWUiLCJ3YWxsZXRCYWxhbmNlIjowLCJtYXJnaW4iOjIwLCJ2ZW5kb3JzIjpbIjY1ZDM0M2UzYWY4MjllOTA1ZjdhODhmOSIsIjY1ZDM0NGE2YWY4MjllOTA1ZjdhODhmYiIsIjY1ZDM0NTIyYWY4MjllOTA1ZjdhODhmZCJdLCJjb2RQcmljZSI6NDAsImlzVmVyaWZpZWQiOmZhbHNlLCJfX3YiOjAsImlhdCI6MTcxMDIyNDMzMywiZXhwIjoxNzEwODI5MTMzfQ.hDUiJbjgbkcLsfIq5X2aYMOjmM9KC7pLsuFBN1_-iSA",
+                                    "type": "text"
+                                }
+                            ],
+                            "url": {
+                                "raw": "{{baseUrl}}/customer",
+                                "host": [
+                                    "{{baseUrl}}"
+                                ],
+                                "path": [
+                                    "customer"
+                                ]
+                            }
+                        },
+                        "response": [],
+                        "uid": "27213613-df37d606-3771-4250-99d9-e4c20ffb28dd"
+                    }
+                ],
+                "id": "e1b4f519-cf17-496e-9d46-bc64fa781c04",
+                "description": "B2B customer",
+                "uid": "27213613-e1b4f519-cf17-496e-9d46-bc64fa781c04"
+            },
+            {
+                "name": "shipment",
+                "item": [
+                    {
+                        "name": "createShipment",
+                        "id": "39982c1a-7377-4a15-98c5-380e1d70405c",
+                        "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                        },
+                        "request": {
+                            "method": "POST",
+                            "header": [
+                                {
+                                    "key": "Authorization",
+                                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NWViZjAzMjZlNGQ1ZjBkZDAyNjc4OGEiLCJuYW1lIjoia2FwaWwgcm9oaWxsYSIsImVtYWlsIjoia2FwaWxyb2hpbGxhMzVAZ21haWwuY29tIiwicGFzc3dvcmQiOiIkMmIkMTAkQzJ5V01BdkpZaGwxT05EVFdnVDNzT1o2eEtDN1R4SEF3bXFQLklzYzR5VVpkMElEWmJab3UiLCJ3YWxsZXRCYWxhbmNlIjowLCJtYXJnaW4iOjIwLCJ2ZW5kb3JzIjpbIjY1ZDM0M2UzYWY4MjllOTA1ZjdhODhmOSIsIjY1ZDM0NGE2YWY4MjllOTA1ZjdhODhmYiIsIjY1ZDM0NTIyYWY4MjllOTA1ZjdhODhmZCJdLCJjb2RQcmljZSI6NDAsImlzVmVyaWZpZWQiOmZhbHNlLCJfX3YiOjAsImlhdCI6MTcwOTk2MTI5MiwiZXhwIjoxNzEwNTY2MDkyfQ.lssJ40GAo2Hu0u5abUznHj0uE13Fr6RIOjQJ3o8v8NQ",
+                                    "type": "text"
+                                }
+                            ],
+                            "body": {
+                                "mode": "raw",
+                                "raw": "{\n  \"orderId\": \"65efe1791729a57bf544547b\",\n  \"orderType\": 0,\n  \"carrierId\": 355\n}",
+                                "options": {
+                                    "raw": {
+                                        "language": "json"
+                                    }
+                                }
+                            },
+                            "url": {
+                                "raw": "{{baseUrl}}/shipment",
+                                "host": [
+                                    "{{baseUrl}}"
+                                ],
+                                "path": [
+                                    "shipment"
+                                ]
+                            }
+                        },
+                        "response": [],
+                        "uid": "27213613-39982c1a-7377-4a15-98c5-380e1d70405c"
+                    },
+                    {
+                        "name": "cancelShipment",
+                        "id": "7a9c2c8c-f37d-4097-81e2-c34cea114e1a",
+                        "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                        },
+                        "request": {
+                            "method": "POST",
+                            "header": [
+                                {
+                                    "key": "Authorization",
+                                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NWViZjAzMjZlNGQ1ZjBkZDAyNjc4OGEiLCJuYW1lIjoia2FwaWwgcm9oaWxsYSIsImVtYWlsIjoia2FwaWxyb2hpbGxhMzVAZ21haWwuY29tIiwicGFzc3dvcmQiOiIkMmIkMTAkQzJ5V01BdkpZaGwxT05EVFdnVDNzT1o2eEtDN1R4SEF3bXFQLklzYzR5VVpkMElEWmJab3UiLCJ3YWxsZXRCYWxhbmNlIjowLCJtYXJnaW4iOjIwLCJ2ZW5kb3JzIjpbIjY1ZDM0M2UzYWY4MjllOTA1ZjdhODhmOSIsIjY1ZDM0NGE2YWY4MjllOTA1ZjdhODhmYiIsIjY1ZDM0NTIyYWY4MjllOTA1ZjdhODhmZCJdLCJjb2RQcmljZSI6NDAsImlzVmVyaWZpZWQiOmZhbHNlLCJfX3YiOjAsImlhdCI6MTcwOTk2MTk2NywiZXhwIjoxNzEwNTY2NzY3fQ.herVGksf6TdqpkszQDdcufvwyl30uPYtfV9xWkVDbN8",
+                                    "type": "text"
+                                }
+                            ],
+                            "body": {
+                                "mode": "raw",
+                                "raw": "{\n  \"orderId\": \"65ee9b0c3ef6c95b8b4c6ea4\"\n}",
+                                "options": {
+                                    "raw": {
+                                        "language": "json"
+                                    }
+                                }
+                            },
+                            "url": {
+                                "raw": "{{baseUrl}}/shipment/cancel",
+                                "host": [
+                                    "{{baseUrl}}"
+                                ],
+                                "path": [
+                                    "shipment",
+                                    "cancel"
+                                ]
+                            }
+                        },
+                        "response": [],
+                        "uid": "27213613-7a9c2c8c-f37d-4097-81e2-c34cea114e1a"
+                    },
+                    {
+                        "name": "TrackShipment",
+                        "id": "4691c6d6-ae4e-46d0-94a3-c8a65b8bb511",
+                        "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                        },
+                        "request": {
+                            "method": "GET",
+                            "header": [
+                                {
+                                    "key": "Authorization",
+                                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NWViZjAzMjZlNGQ1ZjBkZDAyNjc4OGEiLCJuYW1lIjoia2FwaWwgcm9oaWxsYSIsImVtYWlsIjoia2FwaWxyb2hpbGxhMzVAZ21haWwuY29tIiwicGFzc3dvcmQiOiIkMmIkMTAkQzJ5V01BdkpZaGwxT05EVFdnVDNzT1o2eEtDN1R4SEF3bXFQLklzYzR5VVpkMElEWmJab3UiLCJ3YWxsZXRCYWxhbmNlIjowLCJtYXJnaW4iOjIwLCJ2ZW5kb3JzIjpbIjY1ZDM0M2UzYWY4MjllOTA1ZjdhODhmOSIsIjY1ZDM0NGE2YWY4MjllOTA1ZjdhODhmYiIsIjY1ZDM0NTIyYWY4MjllOTA1ZjdhODhmZCJdLCJjb2RQcmljZSI6NDAsImlzVmVyaWZpZWQiOmZhbHNlLCJfX3YiOjAsImlhdCI6MTcwOTk2MTk2NywiZXhwIjoxNzEwNTY2NzY3fQ.herVGksf6TdqpkszQDdcufvwyl30uPYtfV9xWkVDbN8",
+                                    "type": "text"
+                                }
+                            ],
+                            "url": {
+                                "raw": "{{baseUrl}}/shipment/track?id=L11",
+                                "host": [
+                                    "{{baseUrl}}"
+                                ],
+                                "path": [
+                                    "shipment",
+                                    "track"
+                                ],
+                                "query": [
+                                    {
+                                        "key": "id",
+                                        "value": "L11"
+                                    }
+                                ]
+                            }
+                        },
+                        "response": [],
+                        "uid": "27213613-4691c6d6-ae4e-46d0-94a3-c8a65b8bb511"
+                    },
+                    {
+                        "name": "createB2BShipment",
+                        "id": "c732a659-ff45-4d47-87b1-1951c7dd850a",
+                        "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                        },
+                        "request": {
+                            "method": "POST",
+                            "header": [
+                                {
+                                    "key": "Authorization",
+                                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NWViZjAzMjZlNGQ1ZjBkZDAyNjc4OGEiLCJuYW1lIjoia2FwaWwgcm9oaWxsYSIsImVtYWlsIjoia2FwaWxyb2hpbGxhMzVAZ21haWwuY29tIiwicGFzc3dvcmQiOiIkMmIkMTAkQzJ5V01BdkpZaGwxT05EVFdnVDNzT1o2eEtDN1R4SEF3bXFQLklzYzR5VVpkMElEWmJab3UiLCJ3YWxsZXRCYWxhbmNlIjowLCJtYXJnaW4iOjIwLCJ2ZW5kb3JzIjpbIjY1ZDM0M2UzYWY4MjllOTA1ZjdhODhmOSIsIjY1ZDM0NGE2YWY4MjllOTA1ZjdhODhmYiIsIjY1ZDM0NTIyYWY4MjllOTA1ZjdhODhmZCJdLCJjb2RQcmljZSI6NDAsImlzVmVyaWZpZWQiOmZhbHNlLCJfX3YiOjAsImlhdCI6MTcxMDAwNzcxMSwiZXhwIjoxNzEwNjEyNTExfQ.WgLpe2e8IxzB2MOlZe2lTjhww1PS3hg_hmHbWwqMcG0",
+                                    "type": "text"
+                                }
+                            ],
+                            "body": {
+                                "mode": "raw",
+                                "raw": "{\n  \"orderId\": \"65efe6134e9fb6640ad70d83\"\n}",
+                                "options": {
+                                    "raw": {
+                                        "language": "json"
+                                    }
+                                }
+                            },
+                            "url": {
+                                "raw": "{{baseUrl}}/shipment/b2b",
+                                "host": [
+                                    "{{baseUrl}}"
+                                ],
+                                "path": [
+                                    "shipment",
+                                    "b2b"
+                                ]
+                            }
+                        },
+                        "response": [],
+                        "uid": "27213613-c732a659-ff45-4d47-87b1-1951c7dd850a"
+                    },
+                    {
+                        "name": "cancelB2BShipment",
+                        "id": "ed00817f-c698-4475-8570-203f6ffc2262",
+                        "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                        },
+                        "request": {
+                            "method": "POST",
+                            "header": [
+                                {
+                                    "key": "Authorization",
+                                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NWViZjAzMjZlNGQ1ZjBkZDAyNjc4OGEiLCJuYW1lIjoia2FwaWwgcm9oaWxsYSIsImVtYWlsIjoia2FwaWxyb2hpbGxhMzVAZ21haWwuY29tIiwicGFzc3dvcmQiOiIkMmIkMTAkQzJ5V01BdkpZaGwxT05EVFdnVDNzT1o2eEtDN1R4SEF3bXFQLklzYzR5VVpkMElEWmJab3UiLCJ3YWxsZXRCYWxhbmNlIjowLCJtYXJnaW4iOjIwLCJ2ZW5kb3JzIjpbIjY1ZDM0M2UzYWY4MjllOTA1ZjdhODhmOSIsIjY1ZDM0NGE2YWY4MjllOTA1ZjdhODhmYiIsIjY1ZDM0NTIyYWY4MjllOTA1ZjdhODhmZCJdLCJjb2RQcmljZSI6NDAsImlzVmVyaWZpZWQiOmZhbHNlLCJfX3YiOjAsImlhdCI6MTcxMDAwNzcxMSwiZXhwIjoxNzEwNjEyNTExfQ.WgLpe2e8IxzB2MOlZe2lTjhww1PS3hg_hmHbWwqMcG0",
+                                    "type": "text"
+                                }
+                            ],
+                            "url": {
+                                "raw": "{{baseUrl}}/shipment/b2b/cancel",
+                                "host": [
+                                    "{{baseUrl}}"
+                                ],
+                                "path": [
+                                    "shipment",
+                                    "b2b",
+                                    "cancel"
+                                ],
+                                "query": [
+                                    {
+                                        "key": "",
+                                        "value": "",
+                                        "type": "text",
+                                        "disabled": true
+                                    }
+                                ]
+                            }
+                        },
+                        "response": [],
+                        "uid": "27213613-ed00817f-c698-4475-8570-203f6ffc2262"
+                    },
+                    {
+                        "name": "TrackB2bShipment",
+                        "id": "e566bc29-2653-440d-81c0-e21da8e99343",
+                        "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                        },
+                        "request": {
+                            "method": "GET",
+                            "header": [
+                                {
+                                    "key": "Authorization",
+                                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NWViZjAzMjZlNGQ1ZjBkZDAyNjc4OGEiLCJuYW1lIjoia2FwaWwgcm9oaWxsYSIsImVtYWlsIjoia2FwaWxyb2hpbGxhMzVAZ21haWwuY29tIiwicGFzc3dvcmQiOiIkMmIkMTAkQzJ5V01BdkpZaGwxT05EVFdnVDNzT1o2eEtDN1R4SEF3bXFQLklzYzR5VVpkMElEWmJab3UiLCJ3YWxsZXRCYWxhbmNlIjowLCJtYXJnaW4iOjIwLCJ2ZW5kb3JzIjpbIjY1ZDM0M2UzYWY4MjllOTA1ZjdhODhmOSIsIjY1ZDM0NGE2YWY4MjllOTA1ZjdhODhmYiIsIjY1ZDM0NTIyYWY4MjllOTA1ZjdhODhmZCJdLCJjb2RQcmljZSI6NDAsImlzVmVyaWZpZWQiOmZhbHNlLCJfX3YiOjAsImlhdCI6MTcxMDAwNzcxMSwiZXhwIjoxNzEwNjEyNTExfQ.WgLpe2e8IxzB2MOlZe2lTjhww1PS3hg_hmHbWwqMcG0",
+                                    "type": "text"
+                                }
+                            ],
+                            "url": {
+                                "raw": "{{baseUrl}}/shipment/b2b/track",
+                                "host": [
+                                    "{{baseUrl}}"
+                                ],
+                                "path": [
+                                    "shipment",
+                                    "b2b",
+                                    "track"
+                                ]
+                            }
+                        },
+                        "response": [],
+                        "uid": "27213613-e566bc29-2653-440d-81c0-e21da8e99343"
+                    }
+                ],
+                "id": "b721a81d-8248-47eb-b5a3-8d7f0cb64f56",
+                "description": "**incomplete routes**",
+                "uid": "27213613-b721a81d-8248-47eb-b5a3-8d7f0cb64f56"
+            },
+            {
+                "name": "seller",
+                "item": [
+                    {
+                        "name": "updateSeller",
+                        "id": "91cfe858-b092-495b-b64f-72894660ba55",
+                        "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                        },
+                        "request": {
+                            "method": "PUT",
+                            "header": [
+                                {
+                                    "key": "Authorization",
+                                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NWQ5YzllMWJiMWIxOTM4NGFjM2UzMjAiLCJuYW1lIjoia2FwaWwgcm9oaWxsYSIsImVtYWlsIjoia2FwaWxyb2hpbGxhMjAwMkBnbWFpbC5jb20iLCJwYXNzd29yZCI6IiQyYiQxMCRmdXBCOEVXYzRLVHhIRkxDaC5lSmQud1JNOFQ0Z2xoRENqcVAzLjJCOTVkNmlRaXU3d1M2NiIsIndhbGxldEJhbGFuY2UiOjAsIm1hcmdpbiI6MjAsInZlbmRvcnMiOlsiNjVkMzQzZTNhZjgyOWU5MDVmN2E4OGY5IiwiNjVkMzQ0YTZhZjgyOWU5MDVmN2E4OGZiIiwiNjVkMzQ1MjJhZjgyOWU5MDVmN2E4OGZkIl0sImNvZFByaWNlIjo0MCwiaXNWZXJpZmllZCI6ZmFsc2UsIl9fdiI6MCwiaWF0IjoxNzA4NzcxODUwLCJleHAiOjE3MDkzNzY2NTB9.FoBC6ENzKh4Mp-6v4wtl1jvOUTU_-3OyhR9dkXWRMuM",
+                                    "type": "text"
+                                }
+                            ],
+                            "body": {
+                                "mode": "raw",
+                                "raw": "{\n   \"codPrice\": 30\n}",
+                                "options": {
+                                    "raw": {
+                                        "language": "json"
+                                    }
+                                }
+                            },
+                            "url": {
+                                "raw": "{{baseUrl}}/seller",
+                                "host": [
+                                    "{{baseUrl}}"
+                                ],
+                                "path": [
+                                    "seller"
+                                ]
+                            }
+                        },
+                        "response": [],
+                        "uid": "27213613-91cfe858-b092-495b-b64f-72894660ba55"
+                    },
+                    {
+                        "name": "getSeller",
+                        "id": "58f5fadc-9ddf-45bf-9c12-f35f9ef8b400",
+                        "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                        },
+                        "request": {
+                            "method": "GET",
+                            "header": [
+                                {
+                                    "key": "Authorization",
+                                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NWQ5YzllMWJiMWIxOTM4NGFjM2UzMjAiLCJuYW1lIjoia2FwaWwgcm9oaWxsYSIsImVtYWlsIjoia2FwaWxyb2hpbGxhMjAwMkBnbWFpbC5jb20iLCJwYXNzd29yZCI6IiQyYiQxMCRmdXBCOEVXYzRLVHhIRkxDaC5lSmQud1JNOFQ0Z2xoRENqcVAzLjJCOTVkNmlRaXU3d1M2NiIsIndhbGxldEJhbGFuY2UiOjAsIm1hcmdpbiI6MjAsInZlbmRvcnMiOlsiNjVkMzQzZTNhZjgyOWU5MDVmN2E4OGY5IiwiNjVkMzQ0YTZhZjgyOWU5MDVmN2E4OGZiIiwiNjVkMzQ1MjJhZjgyOWU5MDVmN2E4OGZkIl0sImNvZFByaWNlIjo0MCwiaXNWZXJpZmllZCI6ZmFsc2UsIl9fdiI6MCwiaWF0IjoxNzA4NzcxODUwLCJleHAiOjE3MDkzNzY2NTB9.FoBC6ENzKh4Mp-6v4wtl1jvOUTU_-3OyhR9dkXWRMuM",
+                                    "type": "text"
+                                }
+                            ],
+                            "url": {
+                                "raw": "{{baseUrl}}/seller",
+                                "host": [
+                                    "{{baseUrl}}"
+                                ],
+                                "path": [
+                                    "seller"
+                                ]
+                            }
+                        },
+                        "response": [],
+                        "uid": "27213613-58f5fadc-9ddf-45bf-9c12-f35f9ef8b400"
+                    },
+                    {
+                        "name": "deleteSeller",
+                        "id": "a521c4e2-11d4-4a50-a1d4-7a99dde87d95",
+                        "protocolProfileBehavior": {
+                            "disableBodyPruning": true
+                        },
+                        "request": {
+                            "method": "DELETE",
+                            "header": [
+                                {
+                                    "key": "Authorization",
+                                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2NWQ1ZWMyNTliZjFhYTFmMDU2YjM0YWEiLCJuYW1lIjoia2FwaWwgcm9oaWxsYSIsImVtYWlsIjoia2FwaWxyb2hpbGxhMjAwMEBnbWFpbC5jb20iLCJwYXNzd29yZCI6IiQyYiQxMCRhVEtDUTBsbXp0RjJrZW5qeThac2FlZlZXNTJpZy5RTFJ4Um1SWVNPdGxlSVk4UDhqUUJvVyIsIndhbGxlckJhbGFuY2UiOjAsIm1hcmdpbiI6MjAsInZlbmRvcnMiOlsiNjVkMzQzZTNhZjgyOWU5MDVmN2E4OGY5IiwiNjVkMzQ0YTZhZjgyOWU5MDVmN2E4OGZiIiwiNjVkMzQ1MjJhZjgyOWU5MDVmN2E4OGZkIl0sImNvZFByaWNlIjo0MCwiaXNWZXJpZmllZCI6ZmFsc2UsIl9fdiI6MCwiaWF0IjoxNzA4NTk1OTkwLCJleHAiOjE3MDkyMDA3OTB9.bd-pdKrQA34JluDwwbsoWDie-QULY_BtU_Uea3tOMYE",
+                                    "type": "text"
+                                }
+                            ],
+                            "url": {
+                                "raw": "{{baseUrl}}/seller",
+                                "host": [
+                                    "{{baseUrl}}"
+                                ],
+                                "path": [
+                                    "seller"
+                                ]
+                            }
+                        },
+                        "response": [],
+                        "uid": "27213613-a521c4e2-11d4-4a50-a1d4-7a99dde87d95"
+                    }
+                ],
+                "id": "d8e1c47d-5ef5-4b77-894b-606f768358d0",
+                "uid": "27213613-d8e1c47d-5ef5-4b77-894b-606f768358d0"
+            },
+            {
+                "name": "ping",
+                "id": "bc02ff30-5bf9-4149-bb6b-2111c4e6daeb",
+                "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                },
+                "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                        "raw": "{{baseUrl}}/ping",
+                        "host": [
+                            "{{baseUrl}}"
+                        ],
+                        "path": [
+                            "ping"
+                        ]
+                    },
+                    "description": "API to test wheather backend is working or not, be sure to replace update baseUrl variable"
+                },
+                "response": [],
+                "uid": "27213613-bc02ff30-5bf9-4149-bb6b-2111c4e6daeb"
+            }
+        ],
+        "variable": [
+            {
+                "key": "baseUrl",
+                "value": "localhost:4000"
+            }
+        ]
+    }
+}

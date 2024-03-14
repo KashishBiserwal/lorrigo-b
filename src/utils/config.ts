@@ -12,15 +12,15 @@ const PORT = Number(process.env.PORT) || 8000;
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-const SMART_SHIP_USERNAME = process.env.username;
+const SMART_SHIP_USERNAME = "logistics@lorrigo.com";
 
-const SMART_SHIP_PASSWORD = process.env.password;
+const SMART_SHIP_PASSWORD = process.env.PASSWORD;
 
-const SMART_SHIP_CLIENT_ID = process.env.client_id;
+const SMART_SHIP_CLIENT_ID = process.env.CLIENT_ID;
 
-const SMART_SHIP_CLIENT_SECRET = process.env.client_secret;
+const SMART_SHIP_CLIENT_SECRET = process.env.CLIENT_SECRET;
 
-const SMART_SHIP_GRANT_TYPE = process.env.grant_type;
+const SMART_SHIP_GRANT_TYPE = process.env.GRANT_TYPE;
 
 const SMART_SHIP_API_BASEURL = process.env.SMARTSHIP_API_BASEURL;
 

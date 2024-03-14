@@ -321,7 +321,7 @@ export const getOrders = async (req: ExtendedRequest, res: Response, next: NextF
   const skip = --page * limit;
   let orders, orderCount;
   try {
-    orders = await B2COrderModel.find({ sellerId }).limit(limit).skip(skip).populate("productId");
+    orders = await B2COrderModel.find({ sellerId }).limit(limit).skip(skip).populate("productId").populate("pickupAddress");
 
     orderCount = await B2COrderModel.countDocuments({ sellerId: sellerId });
   } catch (err) {
@@ -593,6 +593,7 @@ export const getCourier = async (req: ExtendedRequest, res: Response, next: Next
   return res.status(200).send({
     valid: true,
     courierPartner: data2send,
+    orderDetails
   });
 };
 export const getSpecificOrder = async (req: ExtendedRequest, res: Response, next: NextFunction) => {

@@ -189,7 +189,7 @@ const B2BOrderSchema = new mongoose.Schema({
   },
 });
 */
-const packageDetailsSchema = new mongoose.Schema({
+export const packageDetailsSchema = new mongoose.Schema({
   boxLength: { type: Number, required: true },
   boxHeight: { type: Number, required: true },
   boxWidth: { type: Number, required: true },
@@ -200,7 +200,7 @@ const packageDetailsSchema = new mongoose.Schema({
   description: { type: String, required: false },
   quantity: { type: Number, required: true, default: 1 },
 });
-const ewaysSchema = new mongoose.Schema({
+export const ewaysSchema = new mongoose.Schema({
   amount: { type: Number, required: true },
   ewayBill: { type: String, required: true },
   invoiceNumber: { type: Number, required: true },

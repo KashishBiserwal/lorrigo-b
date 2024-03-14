@@ -14,6 +14,7 @@ import HubModel from "../models/hub.model";
 import { HttpStatusCode } from "axios";
 import Logger from "../utils/logger";
 import https from "node:https";
+import { OrderPayload } from "../types/b2b";
 /*
 export async function createShipment(req: ExtendedRequest, res: Response, next: NextFunction) {
   const body = req.body;
@@ -242,6 +243,7 @@ export async function createShipment(req: ExtendedRequest, res: Response, next: 
       return res.status(200).send({ valid: false, message: "Product details not found" });
     }
   } catch (err) {
+
     return next(err);
   }
   const productValueWithTax =
@@ -282,7 +284,7 @@ export async function createShipment(req: ExtendedRequest, res: Response, next: 
             product_quantity: productDetails?.quantity,
             product_invoice_value: 11234, //productDetails?.invoice_value, // invoice value
             product_taxable_value: productDetails.taxable_value,
-            product_gst_tax_rate: productDetails.tax_rate,
+            product_gst_tax_rate: productDetails.tax_rate || 18,
           },
         ],
         consignee_details: {
@@ -469,7 +471,7 @@ export async function trackShipment(req: ExtendedRequest, res: Response, next: N
  * @param ExtendedRequest
  * @param Response
  * @param NextFunction
- * @author kapilrohilla
+ * @author kapilrohilla, Alok Sharma
  * @body {orderId: string}
  * @returns
  */
@@ -479,7 +481,7 @@ export async function createB2BShipment(req: ExtendedRequest, res: Response, nex
   if (!isValidPayload(body, ["orderId"])) return res.status(200).send({ valid: false, message: "Invalid payload" });
   if (!isValidObjectId(body?.orderId)) return res.status(200).send({ valid: false, message: "invalid orderId" });
 
-  const order = await B2BOrderModel.findOne({ _id: body?.orderId, sellerId })
+  const order: OrderPayload | null = await B2BOrderModel.findOne({ _id: body?.orderId, sellerId })
     .populate("customers")
     .populate("pickupAddress")
     .lean();
@@ -489,7 +491,8 @@ export async function createB2BShipment(req: ExtendedRequest, res: Response, nex
   if (!smartr_token) return res.status(500).send({ valid: false, message: "SMARTR token not found" });
 
   // TODO: adjust totalOrderWeight according to their unit.
-  const totalOrderWeight = order?.packageDetails?.reduce((acc, cv) => acc + cv.boxWeight, 0);
+  // @ts-ignore
+  const totalOrderWeight = order?.packageDetails?.reduce((acc, cv) => acc + cv?.boxWeight , 0);
   console.log(totalOrderWeight, 0);
   let data = [
     {
@@ -506,7 +509,7 @@ export async function createB2BShipment(req: ExtendedRequest, res: Response, nex
         invoiceNumber: order.invoiceNumber + "",
       },
       deliveryDetails: {
-        toName: "kapil rohilla",
+        toName: order.customers.name,
         toAdd: "plot no. 198, sector-110, Gurgaon",
         toCity: "Gurgaon",
         toState: "HR",
@@ -568,7 +571,9 @@ export async function createB2BShipment(req: ExtendedRequest, res: Response, nex
   // /*
   axios
     .post(APIs.CREATE_SMARTR_ORDER, data, apiConfig)
-    .then((response: { data: any }) => {})
+    .then((response: { data: any }) => {
+      
+    })
     .catch((error: unknown) => {
       return next(error);
     });

@@ -68,6 +68,7 @@ export const addVendors = async (req: Request, res: Response, next: NextFunction
   try {
     savedVendor = await vendor.save();
   } catch (err) {
+    console.log(err)
     return next(err);
   }
   return res.status(200).send({
@@ -232,6 +233,7 @@ export const getNextDateWithDesiredTiming = (timing: string): Date => {
 
 export const getPincodeDetails = async (Pincode: number) => {
   const picodeDetails = await PincodeModel.findOne({ Pincode }).lean();
+  console.log(picodeDetails);
   return picodeDetails;
 };
 
@@ -268,28 +270,28 @@ export const MetroCitys = [
 export const NorthEastStates = ["Sikkim", "Mizoram", "Manipur", "Assam", "Megalaya", "Nagaland", "Tripura"];
 
 export async function getSmartShipToken(): Promise<string | false> {
-  const token = await redis.get("token:smartship");
-  if (token) {
-    return token;
-  } else {
+  // const token = await redis.get("token:smartship");
+  // if (token) {
+  //   return token;
+  // } else {
     const env = await EnvModel.findOne({ name: "SMARTSHIP" }).lean();
     if (!env) return false;
     //@ts-ignore
     const smartshipToken = env?.token_type + " " + env?.access_token;
     return smartshipToken;
-  }
+  // }
 }
 export async function getSMARTRToken(): Promise<string | false> {
-  const tok = await redis.get("token:smartr");
-  if (tok) {
-    return tok;
-  } else {
+  // const tok = await redis.get("token:smartr");
+  // if (tok) {
+  //   return tok;
+  // } else {
     const env = await EnvModel.findOne({ name: "SMARTR" }).lean();
     if (!env) return false;
     //@ts-ignore
     const token = env?.data?.token_type + " " + env?.data?.access_token;
     return token;
-  }
+  // }
 }
 
 export async function isSmartr_surface_servicable(pincode: number): Promise<boolean> {
