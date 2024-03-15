@@ -495,7 +495,7 @@ export const getCourier = async (req: ExtendedRequest, res: Response, next: Next
       message: "Invalid vendor",
     });
   }
-  const pickupPinCode = pickupAddress.pincode;
+  const pickupPinCode = pickupAddress?.pincode;
   const deliveryPincode = Number(customerDetails.get("pincode"));
 
   const pickupPinCodeDetails = await getPincodeDetails(Number(pickupPinCode));
