@@ -504,42 +504,42 @@ export async function createB2BShipment(req: ExtendedRequest, res: Response, nex
         declaredValue: order?.totalOrderValue,
         itemDesc: order?.description,
         dimensions: "10~10~10~1~0.5~0/",
-        pieces: order?.packageDetails.length + "",
+        pieces: (order?.packageDetails?.length ?? 0) + "",
         weight: totalOrderWeight + "",
         invoiceNumber: order.invoiceNumber + "",
       },
       deliveryDetails: {
-        toName: order.customers.name,
-        toAdd: "plot no. 198, sector-110, Gurgaon",
-        toCity: "Gurgaon",
-        toState: "HR",
-        toPin: "122001",
-        toMobile: "9711908116",
+        toName: order.customers?.[0]?.name ?? "",
+        toAdd: order.customers?.[0]?.address ?? "",
+        toCity: order.customers?.[0]?.city ?? "",
+        toState: order.customers?.[0]?.state ?? "",
+        toPin: order.customers?.[0]?.pincode ?? "",
+        toMobile: order.customers?.[0]?.phone ?? "",
         toAddType: "Home",
         toLat: "26.00",
         toLng: "78.00",
-        toEmail: "ankurs@smartr.in",
+        toEmail: order.customers?.[0]?.email ?? "",
       },
       pickupDetails: {
-        fromName: "Smartr Express",
-        fromAdd: "plot no. 198, sector-110, Gurgaon",
-        fromCity: "Gurgaon",
-        fromState: "HR",
-        fromPin: "122001",
-        fromMobile: "9711908116",
-        fromAddType: "Seller",
+        fromName: order.pickupAddress?.name,
+        fromAdd: order.pickupAddress?.address1,
+        fromCity: order.pickupAddress?.city,
+        fromState: order.pickupAddress?.state,
+        fromPin: order.pickupAddress?.pincode,
+        fromMobile: order.pickupAddress?.phone,
+        fromAddType: "Hub",
         fromLat: "26.00",
         fromLng: "78.00",
         fromEmail: "ankurs@smartr.in",
       },
       returnDetails: {
-        rtoName: "Smartr Express",
-        rtoAdd: "plot no. 198, sector-110, Gurgaon",
-        rtoCity: "Gurgaon",
-        rtoState: "Haryana",
-        rtoPin: "122001",
-        rtoMobile: "9711908116",
-        rtoAddType: "Seller",
+        rtoName: order.pickupAddress?.name,
+        rtoAdd: order.pickupAddress?.address1,
+        rtoCity: order.pickupAddress?.city,
+        rtoState: order.pickupAddress?.state,
+        rtoPin: order.pickupAddress?.pincode,
+        rtoMobile: order.pickupAddress?.phone,
+        rtoAddType: "Hub",
         rtoLat: "26.00",
         rtoLng: "78.00",
         rtoEmail: "ankurs@smartr.in",
@@ -556,9 +556,6 @@ export async function createB2BShipment(req: ExtendedRequest, res: Response, nex
       },
     },
   ];
-  console.log(data);
-
-  return res.sendStatus(500);
 
   const apiConfig = {
     headers: {
@@ -568,17 +565,15 @@ export async function createB2BShipment(req: ExtendedRequest, res: Response, nex
       rejectUnauthorized: false, // set true to verify ssl certificate
     }),
   };
-  // /*
-  axios
-    .post(APIs.CREATE_SMARTR_ORDER, data, apiConfig)
-    .then((response: { data: any }) => {
-      
-    })
-    .catch((error: unknown) => {
-      return next(error);
-    });
 
-  // */
+  try {
+    const response = await axios.post(APIs.CREATE_SMARTR_ORDER, data, apiConfig);
+    console.log("response", response.data);
+  } catch (error) {
+    console.log("error", error);
+    return next(error);
+  }
+  
   return res.status(500).send({ valid: false, message: "Incomplete route" });
 }
 
