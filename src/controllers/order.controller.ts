@@ -312,7 +312,7 @@ export const createB2COrder = async (req: ExtendedRequest, res: Response, next: 
 
 export const getOrders = async (req: ExtendedRequest, res: Response, next: NextFunction) => {
   const sellerId = req.seller._id;
-  let { limit = 10, page = 1 } = req.query;
+  let { limit = 50, page = 1 } = req.query;
   limit = Number(limit);
   page = Number(page);
   page = page < 1 ? 1 : page;
