@@ -274,11 +274,11 @@ export async function getSmartShipToken(): Promise<string | false> {
   // if (token) {
   //   return token;
   // } else {
-    const env = await EnvModel.findOne({ name: "SMARTSHIP" }).lean();
-    if (!env) return false;
-    //@ts-ignore
-    const smartshipToken = env?.token_type + " " + env?.access_token;
-    return smartshipToken;
+  const env = await EnvModel.findOne({ name: "SMARTSHIP" }).lean();
+  if (!env) return false;
+  //@ts-ignore
+  const smartshipToken = env?.token_type + " " + env?.access_token;
+  return smartshipToken;
   // }
 }
 export async function getSMARTRToken(): Promise<string | false> {
@@ -286,12 +286,50 @@ export async function getSMARTRToken(): Promise<string | false> {
   // if (tok) {
   //   return tok;
   // } else {
-    const env = await EnvModel.findOne({ name: "SMARTR" }).lean();
-    if (!env) return false;
-    //@ts-ignore
-    const token = env?.data?.token_type + " " + env?.data?.access_token;
-    return token;
+  const env = await EnvModel.findOne({ name: "SMARTR" }).lean();
+  if (!env) return false;
+  //@ts-ignore
+  const token = env?.data?.token_type + " " + env?.data?.access_token;
+  return token;
   // }
+}
+
+export async function getStatusCode(description: string) {
+  const statusMap = {
+    "Courier Assigned": "24",
+    "Cancellation Requested By Client": "26",
+    "In Transit": "27",
+    "RTO In Transit": "28",
+    "Out For Delivery": "30",
+    "Handed Over to Courier": "36",
+    "Delivery Confirmed by Customer": "48",
+    "In Transit Delay - ODA Location/ Area Not Accessible": "59",
+    "RTO to be Refunded": "118",
+    "Cancelled By Client": "185",
+    "Forward Shipment Lost": "189",
+    "RTO-Rejected by Merchant": "198",
+    "RTO-Delivered to FC": ["199", "201"],
+    "Shipped - In Transit - Misrouted": "207",
+    "Shipped - In Transit - Destination Reached": "209",
+    "Delivery Not Attempted": "210",
+    "RTO - In Transit - Damaged": "212",
+    "Delivery Attempted-Refused by Customer with OTP": "214"
+  };
+
+  for (const code in statusMap) {
+    if (statusMap.hasOwnProperty(code)) {
+      const descriptionValue = statusMap[code as keyof typeof statusMap]; // Add index signature
+      if (Array.isArray(descriptionValue)) {
+        if (descriptionValue.includes(description)) {
+          return code;
+        }
+      } else if (descriptionValue === description) {
+        return code;
+      }
+    }
+  }
+
+  return "Unknown Status Code";
 }
 
 export async function isSmartr_surface_servicable(pincode: number): Promise<boolean> {

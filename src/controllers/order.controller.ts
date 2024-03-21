@@ -306,13 +306,14 @@ export const createB2COrder = async (req: ExtendedRequest, res: Response, next: 
     savedOrder = await order2save.save();
     return res.status(200).send({ valid: true, order: savedOrder });
   } catch (err) {
+    console.log(err);
     return next(err);
   }
 };
 
 export const getOrders = async (req: ExtendedRequest, res: Response, next: NextFunction) => {
   const sellerId = req.seller._id;
-  let { limit = 10, page = 1 } = req.query;
+  let { limit = 50, page = 1, stage } = req.query;
   limit = Number(limit);
   page = Number(page);
   page = page < 1 ? 1 : page;

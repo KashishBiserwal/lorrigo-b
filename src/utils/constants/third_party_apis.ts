@@ -12,6 +12,8 @@ export const CANCEL_SHIPMENT = "/v2/app/Fulfillmentservice/orderCancellation";
  */
 export const TRACK_SHIPMENT = "/v1/Trackorder?order_reference_ids"; // url => TRACK_SHIPMENT+"=order_reference_id"
 
+export const ORDER_MANIFEST = "/v2/app/Fulfillmentservice/createManifest";
+
 export const CREATE_SMARTR_ORDER = "https://uat.smartr.in/api/v1/add-order";
 /**
  * append awbnumber
@@ -34,6 +36,7 @@ const APIs = {
   TRACK_SHIPMENT,
   CREATE_SMARTR_ORDER,
   TRACK_SMARTR_ORDER,
+  ORDER_MANIFEST,
   /**
    * append awbnumber
    * eg:TRACK_SMARTR_ORDER + ""=awbNumber"
