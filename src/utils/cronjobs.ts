@@ -155,61 +155,21 @@ export const CONNECT_SMARTR = async (): Promise<void> => {
  * @returns void
  */
 export const trackOrder = async () => {
-  // Your code to make API request goes here
-  // const orderReferenceId = req.query?.id;
-  // if (!orderReferenceId) return res.status(200).send({ valid: false, message: "orderReferenceId required" });
-
-  // const orderWithOrderReferenceId = await B2COrderModel.findOne({ order_reference_id: orderReferenceId }).lean();
-  // if (!orderWithOrderReferenceId) {
-  //   return res.status(200).send({ valid: false, message: "order doesn't exists" });
-  // }
-
-  // const smartshipToken = await getSmartShipToken();
-  // if (!smartshipToken) return res.status(200).send({ valid: false, message: "Smarthship ENVs not found" });
-
-  // const shipmentAPIConfig = { headers: { Authorization: smartshipToken } };
-  // try {
-  //   const apiUrl = `${config.SMART_SHIP_API_BASEURL}${APIs.TRACK_SHIPMENT}=${orderWithOrderReferenceId._id + "_" + orderReferenceId
-  //     }`;
-  //   const response = await axios.get(apiUrl, shipmentAPIConfig);
-
-  //   const responseJSON: TrackResponse = response.data;
-  //   console.log(responseJSON.data.scans, "responseJSON")
-  //   if (responseJSON.message === "success") {
-  //     const keys: string[] = Object.keys(responseJSON.data.scans);
-  //     const requiredResponse: RequiredTrackResponse = responseJSON.data.scans[keys[0]][0];
-  //     return res.status(200).send({
-  //       valid: true,
-  //       response: {
-  //         order_reference_id: requiredResponse?.order_reference_id?.split("_")[1],
-  //         carrier_name: requiredResponse?.carrier_name,
-  //         order_date: requiredResponse?.order_date,
-  //         action: requiredResponse?.action,
-  //         status_description: requiredResponse?.status_description,
-  //       },
-  //     });
-  //   } else {
-  //     return res.status(500).send({ valid: false, message: "Something went wrong", response: responseJSON });
-  //   }
-  // } catch (err: unknown) {
-  //   return next(err);
-  // }
-  // return res.status(500).send({ valid: false, message: "Incomplete route" });
-  console.log('trackOrder')
   const orders = await B2COrderModel.find({ orderStage: { $gt: 1 } });
 
   orders.forEach(async (order) => {
     const smartshipToken = await getSmartShipToken();
     if (!smartshipToken) return Logger.warn("Smarthship ENVs not found");
-
+    
     const shipmentAPIConfig = { headers: { Authorization: smartshipToken } };
     try {
       const apiUrl = `${config.SMART_SHIP_API_BASEURL}${APIs.TRACK_SHIPMENT}=${order._id + "_" + order.order_reference_id}`;
+      console.log("adsafds", apiUrl)
       const response: TrackResponse = await axios.get(apiUrl, shipmentAPIConfig);
       if (response.message === "success") {
         const keys: string[] = Object.keys(response.data.scans);
         const requiredResponse: RequiredTrackResponse = response.data.scans[keys[0]][0];
-        console.log({
+        return ({
           valid: true,
           response: {
             order_reference_id: requiredResponse?.order_reference_id?.split("_")[1],
@@ -221,13 +181,15 @@ export const trackOrder = async () => {
         });
       } else {
         // return res.status(500).send({ valid: false, message: "Something went wrong", response: response });
+        return "Something went wrong";
       }
     } catch (err) {
       // Handle the error here
+      return err;
     }
   });
 }
-export default function runCron() {
+export default async function runCron() {
   const expression4every2Minutes = "*/2 * * * *";
   if (cron.validate(expression4every2Minutes)) {
     // cron.schedule(expression4every2Minutes, trackOrder);
@@ -244,7 +206,9 @@ export default function runCron() {
   } else {
     Logger.log("Invalid cron expression");
   }
-
+  console.log("cron scheduled");
+ const res = await trackOrder()
+console.log("res", res)
   // if (
   //   cron.validate(expression4every5Minute) &&
   //   cron.validate(expression4every59Minute) &&
@@ -252,10 +216,9 @@ export default function runCron() {
   // ) {
   //   cron.schedule(expression4every59Minute, CONNECT_SMARTSHIP);
   //   cron.schedule(expression4every5Minute, CANCEL_REQUESTED_ORDER);
+  // }
   //   cron.schedule(expression4every9_59Hr, CONNECT_SMARTR);
   //   Logger.log("cron scheduled");
-  // }
-  // trackOrder()
 }
 
 //  [0, 2, 3, 4, 11, 12, 13, 14, 15, 16, 17, 18, 19, 27, 28, 30]

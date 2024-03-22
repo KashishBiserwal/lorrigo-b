@@ -233,7 +233,6 @@ export const getNextDateWithDesiredTiming = (timing: string): Date => {
 
 export const getPincodeDetails = async (Pincode: number) => {
   const picodeDetails = await PincodeModel.findOne({ Pincode }).lean();
-  console.log(picodeDetails);
   return picodeDetails;
 };
 
