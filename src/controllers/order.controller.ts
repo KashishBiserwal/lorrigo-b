@@ -282,7 +282,6 @@ export const createB2COrder = async (req: ExtendedRequest, res: Response, next: 
       pickupAddress: body?.pickupAddress,
       productId: savedProduct._id,
       order_reference_id: body?.order_reference_id,
-      total_order_value: body?.total_order_value,
       payment_mode: body?.payment_mode,
       order_invoice_date: body?.order_invoice_date,
       order_invoice_number: body?.order_invoice_number.toString(),
@@ -431,7 +430,7 @@ export const getCourier = async (req: ExtendedRequest, res: Response, next: Next
       orderDetails = await B2COrderModel.findById(productId);
       if (orderDetails !== null) {
         //@ts-ignore
-        orderDetails = await orderDetails.populate("pickupAddress");
+        orderDetails = await orderDetails.populate(["pickupAddress", "productId"])
       }
     } catch (err) {
       return next(err);

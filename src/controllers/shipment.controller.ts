@@ -269,7 +269,7 @@ export async function createShipment(req: ExtendedRequest, res: Response, next: 
     orders: [
       {
         client_order_reference_id: order?._id + "_" + order.order_reference_id,
-        order_collectable_amount: order.amount2Collect, // need to take  from user in future
+        order_collectable_amount: order.payment_mode === 1 ? order.amount2Collect : 0, // need to take  from user in future
         total_order_value: totalOrderValue,
         payment_type: order.payment_mode ? "cod" : "prepaid",
         package_order_weight: order.orderBoxWidth,
@@ -327,6 +327,7 @@ export async function createShipment(req: ExtendedRequest, res: Response, next: 
   }
   console.log("externalAPIResponse", externalAPIResponse);
   Logger.log(externalAPIResponse);
+
   if (externalAPIResponse?.status === "403") {
     return res.status(500).send({ valid: true, message: "Smartship ENVs is expired." });
   }

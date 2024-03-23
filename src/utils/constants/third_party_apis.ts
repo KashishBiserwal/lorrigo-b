@@ -4,7 +4,7 @@ export const HUB_DELETE = "/v2/app/Fulfillmentservice/deleteHub";
 
 export const HUB_SERVICEABILITY = "/v2/app/Fulfillmentservice/ServiceabilityHubWise";
 
-export const CREATE_SHIPMENT = "/v2/app/Fulfillmentservice/orderRegistration";
+export const CREATE_SHIPMENT = "/v2/app/Fulfillmentservice/orderRegistrationOneStep";
 export const CANCEL_SHIPMENT = "/v2/app/Fulfillmentservice/orderCancellation";
 /**
  * append order_reference_id
