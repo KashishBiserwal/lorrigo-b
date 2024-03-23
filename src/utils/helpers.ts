@@ -293,43 +293,53 @@ export async function getSMARTRToken(): Promise<string | false> {
   // }
 }
 
-export async function getStatusCode(description: string) {
-  const statusMap = {
-    "Courier Assigned": "24",
-    "Cancellation Requested By Client": "26",
-    "In Transit": "27",
-    "RTO In Transit": "28",
-    "Out For Delivery": "30",
-    "Handed Over to Courier": "36",
-    "Delivery Confirmed by Customer": "48",
-    "In Transit Delay - ODA Location/ Area Not Accessible": "59",
-    "RTO to be Refunded": "118",
-    "Cancelled By Client": "185",
-    "Forward Shipment Lost": "189",
-    "RTO-Rejected by Merchant": "198",
-    "RTO-Delivered to FC": ["199", "201"],
-    "Shipped - In Transit - Misrouted": "207",
-    "Shipped - In Transit - Destination Reached": "209",
-    "Delivery Not Attempted": "210",
-    "RTO - In Transit - Damaged": "212",
-    "Delivery Attempted-Refused by Customer with OTP": "214"
+export function getStatusCode(description: string): number {
+  const statusMap: { [key: string]: number | number[] } = {
+    "Open": 0,
+    "Confirmed": 2,
+    "Shipping Label Generated": 3,
+    "Manifested": 4,
+    "Shipped": 10,
+    "Delivered": 11,
+    "Delivery Attempted-Out Of Delivery Area": 12,
+    "Delivery Attempted-Address Issue / Wrong Address": 13,
+    "Delivery Attempted-COD Not ready": 14,
+    "Delivery Attempted-Customer Not Available/Contactable": 15,
+    "Delivery Attempted-Customer Refused To Accept Delivery": 16,
+    "Delivery Attempted-Requested for Future Delivery": 17,
+    "Return To Origin": 18,
+    "RTO Delivered To Shipper": 19,
+    "Delivery Attempted - Requested For Open Delivery": 22,
+    "Delivery Attempted - Others": 23,
+    "Courier Assigned": 24,
+    "Cancellation Requested By Client": 26,
+    "In Transit": 27,
+    "RTO In Transit": 28,
+    "Out For Delivery": 30,
+    "Handed Over to Courier": 36,
+    "Delivery Confirmed by Customer": 48,
+    "In Transit Delay - ODA Location/ Area Not Accessible": 59,
+    "RTO to be Refunded": 118,
+    "Cancelled By Client": 185,
+    "Forward Shipment Lost": 189,
+    "RTO-Rejected by Merchant": 198,
+    "RTO-Delivered to FC": [199, 201],
+    "Shipped - In Transit - Misrouted": 207,
+    "Shipped - In Transit - Destination Reached": 209,
+    "Delivery Not Attempted": 210,
+    "RTO - In Transit - Damaged": 212,
+    "Delivery Attempted-Refused by Customer with OTP": 214
   };
 
-  for (const code in statusMap) {
-    if (statusMap.hasOwnProperty(code)) {
-      const descriptionValue = statusMap[code as keyof typeof statusMap]; // Add index signature
-      if (Array.isArray(descriptionValue)) {
-        if (descriptionValue.includes(description)) {
-          return code;
-        }
-      } else if (descriptionValue === description) {
-        return code;
-      }
-    }
+  if (statusMap.hasOwnProperty(description)) {
+    const statusCode = statusMap[description];
+    return Array.isArray(statusCode) ? statusCode[0] : statusCode;
   }
 
-  return "Unknown Status Code";
+  return -1; 
 }
+
+
 
 export async function isSmartr_surface_servicable(pincode: number): Promise<boolean> {
   /*

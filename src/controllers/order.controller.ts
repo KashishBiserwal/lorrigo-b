@@ -279,6 +279,7 @@ export const createB2COrder = async (req: ExtendedRequest, res: Response, next: 
     const data = {
       sellerId: req.seller?._id,
       orderStage: 0,
+      orderStages: [{ stage: 0, stageDateTime: new Date() }],
       pickupAddress: body?.pickupAddress,
       productId: savedProduct._id,
       order_reference_id: body?.order_reference_id,

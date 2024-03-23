@@ -1,5 +1,5 @@
 import { type Request, type Response, type NextFunction, response } from "express";
-import { getSMARTRToken, getSmartShipToken, isValidPayload } from "../utils/helpers";
+import { getSMARTRToken, getSmartShipToken, getStatusCode, isValidPayload } from "../utils/helpers";
 import { B2BOrderModel, B2COrderModel } from "../models/order.model";
 import { isValidObjectId } from "mongoose";
 import axios from "axios";
@@ -489,7 +489,7 @@ export async function trackShipment(req: ExtendedRequest, res: Response, next: N
   const orderReferenceId = req.query?.id;
   if (!orderReferenceId) return res.status(200).send({ valid: false, message: "orderReferenceId required" });
 
-  const orderWithOrderReferenceId = await B2COrderModel.findOne({ order_reference_id: orderReferenceId }).lean();
+  const orderWithOrderReferenceId = await B2COrderModel.findOne({ order_reference_id: orderReferenceId });
   if (!orderWithOrderReferenceId) {
     return res.status(200).send({ valid: false, message: "order doesn't exists" });
   }
@@ -498,16 +498,26 @@ export async function trackShipment(req: ExtendedRequest, res: Response, next: N
   if (!smartshipToken) return res.status(200).send({ valid: false, message: "Smarthship ENVs not found" });
 
   const shipmentAPIConfig = { headers: { Authorization: smartshipToken } };
+  
   try {
     const apiUrl = `${config.SMART_SHIP_API_BASEURL}${APIs.TRACK_SHIPMENT}=${orderWithOrderReferenceId._id + "_" + orderReferenceId
       }`;
     const response = await axios.get(apiUrl, shipmentAPIConfig);
 
     const responseJSON: TrackResponse = response.data;
-    console.log(responseJSON.data.scans, "responseJSON")
     if (responseJSON.message === "success") {
       const keys: string[] = Object.keys(responseJSON.data.scans);
       const requiredResponse: RequiredTrackResponse = responseJSON.data.scans[keys[0]][0];
+      // Update order status
+      const statusCode = getStatusCode(requiredResponse?.status_description ?? '');
+      orderWithOrderReferenceId.orderStage = statusCode;
+      orderWithOrderReferenceId.orderStages.push({
+        stage: statusCode,
+        stageDateTime: new Date(),
+      });
+
+      await orderWithOrderReferenceId.save();
+
       return res.status(200).send({
         valid: true,
         response: {

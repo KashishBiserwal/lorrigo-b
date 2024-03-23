@@ -41,6 +41,12 @@ const B2COrderSchema = new mongoose.Schema({
   awb: { type: String },
   sellerId: { type: mongoose.Schema.Types.ObjectId, ref: "Seller", required: true },
   orderStage: { type: Number, required: true }, // 0 -> not shipped, 1 -> shipped, 2 -> Cancelation Request, 3->Canceled
+  orderStages: [
+    {
+      stage: { type: Number, required: true },
+      stageDateTime: { type: Date, required: true },
+    },
+  ],
   pickupAddress: { type: mongoose.Schema.Types.ObjectId, ref: "Hub" },
   productId: { type: mongoose.Schema.Types.ObjectId, ref: "Products", required: true },
 

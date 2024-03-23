@@ -2,7 +2,7 @@ import axios from "axios";
 import { B2COrderModel } from "../models/order.model";
 import config from "./config";
 import APIs from "./constants/third_party_apis";
-import { getSmartShipToken } from "./helpers";
+import { getSmartShipToken, getStatusCode } from "./helpers";
 import * as cron from "node-cron";
 import EnvModel from "../models/env.model";
 import https from "node:https";
@@ -157,42 +157,51 @@ export const CONNECT_SMARTR = async (): Promise<void> => {
 export const trackOrder = async () => {
   const orders = await B2COrderModel.find({ orderStage: { $gt: 1 } });
 
-  orders.forEach(async (order) => {
+  for (const orderWithOrderReferenceId of orders) {
     const smartshipToken = await getSmartShipToken();
-    if (!smartshipToken) return Logger.warn("Smarthship ENVs not found");
-    
+    if (!smartshipToken) {
+      Logger.warn("FAILED TO RUN JOB, SMART SHIP TOKEN NOT FOUND");
+      return;
+    }
+
     const shipmentAPIConfig = { headers: { Authorization: smartshipToken } };
+
     try {
-      const apiUrl = `${config.SMART_SHIP_API_BASEURL}${APIs.TRACK_SHIPMENT}=${order._id + "_" + order.order_reference_id}`;
-      console.log("adsafds", apiUrl)
-      const response: TrackResponse = await axios.get(apiUrl, shipmentAPIConfig);
-      if (response.message === "success") {
-        const keys: string[] = Object.keys(response.data.scans);
-        const requiredResponse: RequiredTrackResponse = response.data.scans[keys[0]][0];
-        return ({
-          valid: true,
-          response: {
-            order_reference_id: requiredResponse?.order_reference_id?.split("_")[1],
-            carrier_name: requiredResponse?.carrier_name,
-            order_date: requiredResponse?.order_date,
-            action: requiredResponse?.action,
-            status_description: requiredResponse?.status_description,
-          },
-        });
+      const apiUrl = `${config.SMART_SHIP_API_BASEURL}${APIs.TRACK_SHIPMENT}=${orderWithOrderReferenceId._id + "_" + orderWithOrderReferenceId.order_reference_id}`;
+      const response = await axios.get(apiUrl, shipmentAPIConfig);
+
+      const responseJSON: TrackResponse = response.data;
+      if (responseJSON.message === "success") {
+        const keys: string[] = Object.keys(responseJSON.data.scans);
+        const requiredResponse: RequiredTrackResponse = responseJSON.data.scans[keys[0]][0];
+
+        const statusCode = getStatusCode(requiredResponse?.status_description ?? '');
+        if (orderWithOrderReferenceId.orderStage !== statusCode) {
+          // Update order status
+          orderWithOrderReferenceId.orderStage = statusCode;
+          orderWithOrderReferenceId.orderStages.push({
+            stage: statusCode,
+            stageDateTime: new Date(),
+          });
+          await orderWithOrderReferenceId.save();
+        }
+
       } else {
-        // return res.status(500).send({ valid: false, message: "Something went wrong", response: response });
-        return "Something went wrong";
+        Logger.err("Error: " + JSON.stringify(responseJSON));
       }
     } catch (err) {
-      // Handle the error here
-      return err;
+      console.log("inside catch")
+      Logger.err("Error: [TrackOrder]");
+      Logger.err(err);
     }
-  });
-}
+  }
+};
+
+
 export default async function runCron() {
   const expression4every2Minutes = "*/2 * * * *";
   if (cron.validate(expression4every2Minutes)) {
-    // cron.schedule(expression4every2Minutes, trackOrder);
+    cron.schedule(expression4every2Minutes, trackOrder);
 
     const expression4every5Minute = "5 * * * *";
     const expression4every59Minute = "59 * * * *";
@@ -206,19 +215,4 @@ export default async function runCron() {
   } else {
     Logger.log("Invalid cron expression");
   }
-  console.log("cron scheduled");
- const res = await trackOrder()
-console.log("res", res)
-  // if (
-  //   cron.validate(expression4every5Minute) &&
-  //   cron.validate(expression4every59Minute) &&
-  //   cron.validate(expression4every9_59Hr)
-  // ) {
-  //   cron.schedule(expression4every59Minute, CONNECT_SMARTSHIP);
-  //   cron.schedule(expression4every5Minute, CANCEL_REQUESTED_ORDER);
-  // }
-  //   cron.schedule(expression4every9_59Hr, CONNECT_SMARTR);
-  //   Logger.log("cron scheduled");
 }
-
-//  [0, 2, 3, 4, 11, 12, 13, 14, 15, 16, 17, 18, 19, 27, 28, 30]
