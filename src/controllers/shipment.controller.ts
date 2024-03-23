@@ -339,7 +339,9 @@ export async function createShipment(req: ExtendedRequest, res: Response, next: 
     const shipmentResponseToSave = new ShipmentResponseModel({ order: order._id, response: externalAPIResponse });
     try {
       const savedShipmentResponse = await shipmentResponseToSave.save();
+      const awbNumber = externalAPIResponse?.data?.success_order_details?.orders[0]?.awb_number
       order.orderStage = 1;
+      order.awb = awbNumber;
       const updatedOrder = await order.save();
       return res.status(200).send({ valid: true, order: updatedOrder, shipment: savedShipmentResponse });
     } catch (err) {
