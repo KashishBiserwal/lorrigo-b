@@ -197,9 +197,9 @@ export const createB2COrder = async (req: ExtendedRequest, res: Response, next: 
   )
     return res.status(200).send({ valid: false, message: "Invalid payload" });
 
-  if (!isValidPayload(productDetails, ["name", "category", "hsn_code", "quantity", "taxRate", "taxableValue"]))
+  if (!isValidPayload(productDetails, ["name", "category", "quantity", "taxRate", "taxableValue"]))
     return res.status(200).send({ valid: false, message: "Invalid payload: productDetails" });
-  if (!isValidPayload(customerDetails, ["name", "email", "phone", "address", "pincode"]))
+  if (!isValidPayload(customerDetails, ["name", "phone", "address", "pincode"]))
     return res.status(200).send({ valid: false, message: "Invalid payload: customerDetails" });
   if (!isValidObjectId(body.pickupAddress))
     return res.status(200).send({ valid: false, message: "Invalid pickupAddress" });
