@@ -17,7 +17,9 @@ import sellerRouter from "./routes/seller.routes";
 import runCron, { CONNECT_SMARTR, CONNECT_SMARTSHIP } from "./utils/cronjobs";
 import Logger from "./utils/logger";
 
-app.use(cors());
+app.use(cors({
+  origin: "*",
+}));
 
 app.use(express.json());
 
