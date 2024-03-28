@@ -44,20 +44,22 @@ mongoose
     Logger.log(err.message);
   });
 
-app.use("/auth", authRouter);
-app.post("/vendor", addVendors);
-app.get("/getsellers", getSellers);
+
+app.use("/api/auth", authRouter);
+app.post("/api/vendor", addVendors);
+app.get("/api/getsellers", getSellers);
 
 // @ts-ignore (as Request object is extended with new property seller)
 app.use(AuthMiddleware);
 
 //@ts-ignore
-app.post("/ratecalculator", ratecalculatorController);
-app.use("/seller", sellerRouter);
-app.use("/customer", customerRouter);
-app.use("/hub", hubRouter);
-app.use("/order", orderRouter);
-app.use("/shipment", shipmentRouter);
+app.post("/api/ratecalculator", ratecalculatorController);
+app.use("/api/seller", sellerRouter);
+app.use("/api/customer", customerRouter);
+app.use("/api/hub", hubRouter);
+app.use("/api/order", orderRouter);
+app.use("/api/shipment", shipmentRouter);
+
 
 app.use(ErrorHandler);
 app.use("*", (req: Request, res: Response) => {
