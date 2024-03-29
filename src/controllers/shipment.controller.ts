@@ -513,6 +513,7 @@ export async function trackShipment(req: ExtendedRequest, res: Response, next: N
       orderWithOrderReferenceId.orderStage = statusCode;
       orderWithOrderReferenceId.orderStages.push({
         stage: statusCode,
+        action: requiredResponse?.action ?? '',
         stageDateTime: new Date(),
       });
 
