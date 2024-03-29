@@ -279,7 +279,7 @@ export const createB2COrder = async (req: ExtendedRequest, res: Response, next: 
     const data = {
       sellerId: req.seller?._id,
       orderStage: 0,
-      orderStages: [{ stage: 0, stageDateTime: new Date() }],
+      orderStages: [{ stage: 0, stageDateTime: new Date(), action: "New" }],
       pickupAddress: body?.pickupAddress,
       productId: savedProduct._id,
       order_reference_id: body?.order_reference_id,
@@ -313,18 +313,43 @@ export const createB2COrder = async (req: ExtendedRequest, res: Response, next: 
 
 export const getOrders = async (req: ExtendedRequest, res: Response, next: NextFunction) => {
   const sellerId = req.seller._id;
-  let { limit = 50, page = 1, stage } = req.query;
+  let { limit = 50, page = 1, status }: { limit?: number, page?: number, status?: string } = req.query;
+  console.log("limit", limit, "page", page, "status", status);
+
+  const obj = {
+    "new": [0],
+    "ready-for-pickup": [2, 3, 4],
+    "in-transit": [27, 30],
+    "delivered": [11],
+    "ndr": [12, 13, 14, 15, 16, 17],
+    "rto": [18, 19],
+  }
+
   limit = Number(limit);
   page = Number(page);
   page = page < 1 ? 1 : page;
   limit = limit < 1 ? 1 : limit;
 
-  const skip = --page * limit;
+  const skip = (page - 1) * limit;
+
   let orders, orderCount;
   try {
-    orders = await B2COrderModel.find({ sellerId }).limit(limit).skip(skip).populate("productId").populate("pickupAddress");
+    let query: any = { sellerId };
 
-    orderCount = await B2COrderModel.countDocuments({ sellerId: sellerId });
+    if (status && obj.hasOwnProperty(status)) {
+      query.orderStage = { $in: obj[status as keyof typeof obj] };
+    }
+
+    orders = (await B2COrderModel.find(query)
+      .limit(limit)
+      .skip(skip)
+      .populate("productId")
+      .populate("pickupAddress")
+      .lean()).reverse();
+
+    orderCount = status && obj.hasOwnProperty(status) ?
+      await B2COrderModel.countDocuments(query) :
+      await B2COrderModel.countDocuments({ sellerId });
   } catch (err) {
     return next(err);
   }
@@ -429,6 +454,7 @@ export const getCourier = async (req: ExtendedRequest, res: Response, next: Next
   if (type === "b2c") {
     try {
       orderDetails = await B2COrderModel.findById(productId);
+      console.log("orderDetails", orderDetails);
       if (orderDetails !== null) {
         //@ts-ignore
         orderDetails = await orderDetails.populate(["pickupAddress", "productId"])
@@ -450,11 +476,12 @@ export const getCourier = async (req: ExtendedRequest, res: Response, next: Next
   const totalOrderWeight = orderDetails?.orderWeight;
   let orderWeight: number | null = null;
 
+  console.log("orderDetails", new RegExp("^cm", "i").test(orderDetails?.orderSizeUnit), orderDetails?.orderSizeUnit)
   if (new RegExp("cm", "i").test(orderDetails?.orderSizeUnit)) {
     const totalVolumetricWeight =
       (orderDetails?.orderBoxHeight * orderDetails?.orderBoxWidth * orderDetails?.orderBoxLength) / 5000;
     orderWeight = totalOrderWeight > totalVolumetricWeight ? totalOrderWeight : totalVolumetricWeight;
-  } else if (new RegExp("^m$", "i").test(orderDetails?.orderWeightUnit)) {
+  } else if (new RegExp("kg", "i").test(orderDetails?.orderWeightUnit)) {
     const totalVolumetricWeight =
       (orderDetails?.orderBoxHeight * orderDetails?.orderBoxWidth * orderDetails?.orderBoxLength) / 5;
     orderWeight = totalOrderWeight > totalVolumetricWeight ? totalOrderWeight : totalVolumetricWeight;

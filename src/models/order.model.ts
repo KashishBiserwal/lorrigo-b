@@ -44,6 +44,7 @@ const B2COrderSchema = new mongoose.Schema({
   orderStages: [
     {
       stage: { type: Number, required: true },
+      action: { type: String, required: true },
       stageDateTime: { type: Date, required: true },
     },
   ],

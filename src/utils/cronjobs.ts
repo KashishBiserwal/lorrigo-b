@@ -175,12 +175,15 @@ export const trackOrder = async () => {
         const keys: string[] = Object.keys(responseJSON.data.scans);
         const requiredResponse: RequiredTrackResponse = responseJSON.data.scans[keys[0]][0];
 
+        console.log("requiredResponse: ", requiredResponse);
+
         const statusCode = getStatusCode(requiredResponse?.status_description ?? '');
         if (orderWithOrderReferenceId.orderStage !== statusCode) {
           // Update order status
           orderWithOrderReferenceId.orderStage = statusCode;
           orderWithOrderReferenceId.orderStages.push({
             stage: statusCode,
+            action: requiredResponse?.action ?? '',
             stageDateTime: new Date(),
           });
           await orderWithOrderReferenceId.save();
