@@ -7,7 +7,7 @@ const app = express();
 import config from "./utils/config";
 import orderRouter from "./routes/order.routes";
 import { AuthMiddleware, ErrorHandler } from "./utils/middleware";
-import { addVendors, getSellers, ratecalculatorController } from "./utils/helpers";
+import { addVendors, getSellers, ratecalculatorController, updateVendor4Seller } from "./utils/helpers";
 import hubRouter from "./routes/hub.routes";
 import cors from "cors";
 import customerRouter from "./routes/customer.routes";
@@ -17,9 +17,7 @@ import sellerRouter from "./routes/seller.routes";
 import runCron, { CONNECT_SMARTR, CONNECT_SMARTSHIP } from "./utils/cronjobs";
 import Logger from "./utils/logger";
 
-app.use(cors({
-  origin: "*",
-}));
+app.use(cors({ origin: "*" }));
 
 app.use(express.json());
 
@@ -46,22 +44,25 @@ mongoose
     Logger.log(err.message);
   });
 
-
 app.use("/api/auth", authRouter);
 app.post("/api/vendor", addVendors);
 app.get("/api/getsellers", getSellers);
-
+app.post("/api/seller_vendor", updateVendor4Seller);
 // @ts-ignore (as Request object is extended with new property seller)
-app.use(AuthMiddleware);
+// app.use(AuthMiddleware);
 
 //@ts-ignore
-app.post("/api/ratecalculator", ratecalculatorController);
-app.use("/api/seller", sellerRouter);
-app.use("/api/customer", customerRouter);
-app.use("/api/hub", hubRouter);
-app.use("/api/order", orderRouter);
-app.use("/api/shipment", shipmentRouter);
-
+app.post("/api/ratecalculator", AuthMiddleware, ratecalculatorController);
+//@ts-ignore
+app.use("/api/seller", AuthMiddleware, sellerRouter);
+//@ts-ignore
+app.use("/api/customer", AuthMiddleware, customerRouter);
+//@ts-ignore
+app.use("/api/hub", AuthMiddleware, hubRouter);
+//@ts-ignore
+app.use("/api/order", AuthMiddleware, orderRouter);
+//@ts-ignore
+app.use("/api/shipment", AuthMiddleware, shipmentRouter);
 
 app.use(ErrorHandler);
 app.use("*", (req: Request, res: Response) => {

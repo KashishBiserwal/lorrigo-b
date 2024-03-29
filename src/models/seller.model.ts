@@ -1,5 +1,9 @@
 import mongoose from "mongoose";
 
+const codSchema = {
+  hard: { type: Number, required: true, min: 0, defualt: 40 },
+  percent: { type: Number, required: true, min: 0, max: 100, defualt: 1.5 },
+};
 const sellerSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true },
@@ -12,7 +16,14 @@ const sellerSchema = new mongoose.Schema({
   panno: { type: String, required: false },
   margin: { type: Number, min: 0, max: 100, default: 20 },
   vendors: [{ type: mongoose.Schema.Types.ObjectId, ref: "Vendors" }],
-  codPrice: { type: Number, min: 0, default: 40 },
+  codPrice: {
+    type: codSchema,
+    required: false,
+    default: {
+      hard: 40,
+      percent: 1.5,
+    },
+  },
   isVerified: { type: Boolean, default: false },
 });
 
