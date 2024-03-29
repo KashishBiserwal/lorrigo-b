@@ -4,13 +4,15 @@ export const HUB_DELETE = "/v2/app/Fulfillmentservice/deleteHub";
 
 export const HUB_SERVICEABILITY = "/v2/app/Fulfillmentservice/ServiceabilityHubWise";
 
-export const CREATE_SHIPMENT = "/v2/app/Fulfillmentservice/orderRegistration";
+export const CREATE_SHIPMENT = "/v2/app/Fulfillmentservice/orderRegistrationOneStep";
 export const CANCEL_SHIPMENT = "/v2/app/Fulfillmentservice/orderCancellation";
 /**
  * append order_reference_id
  * eg: TRACK_SHIPMENT + order_reference_id
  */
 export const TRACK_SHIPMENT = "/v1/Trackorder?order_reference_ids"; // url => TRACK_SHIPMENT+"=order_reference_id"
+
+export const ORDER_MANIFEST = "/v2/app/Fulfillmentservice/createManifest";
 
 export const CREATE_SMARTR_ORDER = "https://uat.smartr.in/api/v1/add-order";
 /**
@@ -34,6 +36,7 @@ const APIs = {
   TRACK_SHIPMENT,
   CREATE_SMARTR_ORDER,
   TRACK_SMARTR_ORDER,
+  ORDER_MANIFEST,
   /**
    * append awbnumber
    * eg:TRACK_SMARTR_ORDER + ""=awbNumber"

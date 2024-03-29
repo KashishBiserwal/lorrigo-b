@@ -38,15 +38,23 @@ import mongoose from "mongoose";
 // });
 
 const B2COrderSchema = new mongoose.Schema({
+  awb: { type: String },
   sellerId: { type: mongoose.Schema.Types.ObjectId, ref: "Seller", required: true },
   orderStage: { type: Number, required: true }, // 0 -> not shipped, 1 -> shipped, 2 -> Cancelation Request, 3->Canceled
+  orderStages: [
+    {
+      stage: { type: Number, required: true },
+      action: { type: String, required: true },
+      stageDateTime: { type: Date, required: true },
+    },
+  ],
   pickupAddress: { type: mongoose.Schema.Types.ObjectId, ref: "Hub" },
   productId: { type: mongoose.Schema.Types.ObjectId, ref: "Products", required: true },
 
   order_reference_id: { type: String, required: true },
   payment_mode: { type: Number, required: true }, // 0 -> prepaid, 1 -> COD
-  order_invoice_date: { type: String, required: true },
-  order_invoice_number: { type: Number, required: true },
+  order_invoice_date: { type: String },
+  order_invoice_number: { type: String },
   isContainFragileItem: { type: Boolean, required: true, default: false },
   numberOfBoxes: { type: Number, required: true, default: 1 },
   orderBoxHeight: { type: Number, required: true },
@@ -72,6 +80,9 @@ const B2COrderSchema = new mongoose.Schema({
     state: { type: String, required: false },
     pincode: { type: String, required: true },
   },
+
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
 
   /*
     product -> shipmentValue, taxrates

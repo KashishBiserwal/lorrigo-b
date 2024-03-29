@@ -1,5 +1,5 @@
 import { type Request, type Response, type NextFunction, response } from "express";
-import { getSMARTRToken, getSmartShipToken, isValidPayload } from "../utils/helpers";
+import { getSMARTRToken, getSmartShipToken, getStatusCode, isValidPayload } from "../utils/helpers";
 import { B2BOrderModel, B2COrderModel } from "../models/order.model";
 import { isValidObjectId } from "mongoose";
 import axios from "axios";
@@ -15,6 +15,15 @@ import { HttpStatusCode } from "axios";
 import Logger from "../utils/logger";
 import https from "node:https";
 import { OrderPayload } from "../types/b2b";
+import {
+  calculateAverageShippingCost,
+  calculateCODDetails,
+  calculateNDRDetails,
+  calculateRevenue,
+  calculateShipmentDetails,
+} from "../utils";
+import { RequiredTrackResponse, TrackResponse } from "../types/b2c";
+
 /*
 export async function createShipment(req: ExtendedRequest, res: Response, next: NextFunction) {
   const body = req.body;
@@ -243,7 +252,6 @@ export async function createShipment(req: ExtendedRequest, res: Response, next: 
       return res.status(200).send({ valid: false, message: "Product details not found" });
     }
   } catch (err) {
-
     return next(err);
   }
   const productValueWithTax =
@@ -260,7 +268,7 @@ export async function createShipment(req: ExtendedRequest, res: Response, next: 
     orders: [
       {
         client_order_reference_id: order?._id + "_" + order.order_reference_id,
-        order_collectable_amount: order.amount2Collect, // need to take  from user in future
+        order_collectable_amount: order.payment_mode === 1 ? order.amount2Collect : 0, // need to take  from user in future
         total_order_value: totalOrderValue,
         payment_type: order.payment_mode ? "cod" : "prepaid",
         package_order_weight: order.orderBoxWidth,
@@ -316,8 +324,9 @@ export async function createShipment(req: ExtendedRequest, res: Response, next: 
   } catch (err: unknown) {
     return next(err);
   }
-  // console.log(externalAPIResponse);
+  console.log("externalAPIResponse", externalAPIResponse);
   Logger.log(externalAPIResponse);
+
   if (externalAPIResponse?.status === "403") {
     return res.status(500).send({ valid: true, message: "Smartship ENVs is expired." });
   }
@@ -329,7 +338,9 @@ export async function createShipment(req: ExtendedRequest, res: Response, next: 
     const shipmentResponseToSave = new ShipmentResponseModel({ order: order._id, response: externalAPIResponse });
     try {
       const savedShipmentResponse = await shipmentResponseToSave.save();
+      const awbNumber = externalAPIResponse?.data?.success_order_details?.orders[0]?.awb_number;
       order.orderStage = 1;
+      order.awb = awbNumber;
       const updatedOrder = await order.save();
       return res.status(200).send({ valid: true, order: updatedOrder, shipment: savedShipmentResponse });
     } catch (err) {
@@ -425,11 +436,59 @@ export async function cancelShipment(req: ExtendedRequest, res: Response, next: 
     .send({ valid: false, message: "unhandled section of route", response: externalAPIResponse.data });
 }
 
+export async function orderManifest(req: ExtendedRequest, res: Response, next: NextFunction) {
+  const body = req.body;
+  const { orderId } = body;
+
+  if (!(orderId && isValidObjectId(orderId))) {
+    return res.status(200).send({ valid: false, message: "invalid payload" });
+  }
+
+  let order;
+  try {
+    order = await B2COrderModel.findOne({ _id: orderId, sellerId: req.seller._id }).lean();
+  } catch (err) {
+    return next(err);
+  }
+
+  if (!order) return res.status(200).send({ valid: false, message: "order not found" });
+
+  const smartshipToken = await getSmartShipToken();
+  if (!smartshipToken) return res.status(200).send({ valid: false, message: "Smarthship ENVs not found" });
+
+  const shipmentAPIConfig = { headers: { Authorization: smartshipToken } };
+
+  const requestBody = {
+    // client_order_reference_ids: [order._id + "_" + order.order_reference_id],
+    // client_order_reference_ids: [order._id + "_" + order.order_reference_id],
+    preferred_pickup_date: "2024-03-22",
+    shipment_type: 1,
+  };
+
+  const externalAPIResponse = await axios.post(
+    config.SMART_SHIP_API_BASEURL + APIs.ORDER_MANIFEST,
+    requestBody,
+    shipmentAPIConfig
+  );
+  console.log(externalAPIResponse.data, "externalAPIResponse");
+  if (externalAPIResponse.data.status === "403") {
+    return res.status(500).send({ valid: false, message: "Smartships Envs expired" });
+  }
+
+  const order_manifest_details = externalAPIResponse.data?.data;
+
+  if (order_manifest_details?.failure) {
+    return res.status(200).send({ valid: false, message: "Incomplete route", order_manifest_details });
+  } else {
+    return res.status(200).send({ valid: true, message: "Order manifest request Generated", order_manifest_details });
+  }
+}
+
 export async function trackShipment(req: ExtendedRequest, res: Response, next: NextFunction) {
   const orderReferenceId = req.query?.id;
   if (!orderReferenceId) return res.status(200).send({ valid: false, message: "orderReferenceId required" });
 
-  const orderWithOrderReferenceId = await B2COrderModel.findOne({ order_reference_id: orderReferenceId }).lean();
+  const orderWithOrderReferenceId = await B2COrderModel.findOne({ order_reference_id: orderReferenceId });
   if (!orderWithOrderReferenceId) {
     return res.status(200).send({ valid: false, message: "order doesn't exists" });
   }
@@ -438,15 +497,28 @@ export async function trackShipment(req: ExtendedRequest, res: Response, next: N
   if (!smartshipToken) return res.status(200).send({ valid: false, message: "Smarthship ENVs not found" });
 
   const shipmentAPIConfig = { headers: { Authorization: smartshipToken } };
+
   try {
     const apiUrl = `${config.SMART_SHIP_API_BASEURL}${APIs.TRACK_SHIPMENT}=${
       orderWithOrderReferenceId._id + "_" + orderReferenceId
     }`;
     const response = await axios.get(apiUrl, shipmentAPIConfig);
+
     const responseJSON: TrackResponse = response.data;
     if (responseJSON.message === "success") {
       const keys: string[] = Object.keys(responseJSON.data.scans);
       const requiredResponse: RequiredTrackResponse = responseJSON.data.scans[keys[0]][0];
+      // Update order status
+      const statusCode = getStatusCode(requiredResponse?.status_description ?? "");
+      orderWithOrderReferenceId.orderStage = statusCode;
+      orderWithOrderReferenceId.orderStages.push({
+        stage: statusCode,
+        action: requiredResponse?.action ?? "",
+        stageDateTime: new Date(),
+      });
+
+      await orderWithOrderReferenceId.save();
+
       return res.status(200).send({
         valid: true,
         response: {
@@ -492,57 +564,120 @@ export async function createB2BShipment(req: ExtendedRequest, res: Response, nex
 
   // TODO: adjust totalOrderWeight according to their unit.
   // @ts-ignore
-  const totalOrderWeight = order?.packageDetails?.reduce((acc, cv) => acc + cv?.boxWeight , 0);
+  const totalOrderWeight = order?.packageDetails?.reduce((acc, cv) => acc + cv?.boxWeight, 0);
   console.log(totalOrderWeight, 0);
+  // let data = [
+  //   {
+  //     packageDetails: {
+  //       awbNumber: "",
+  //       orderNumber: "0000000000000000",
+  //       productType: "WKO", // WKO for surface bookings
+  //       collectableValue: order?.amount2Collect,
+  //       declaredValue: order?.totalOrderValue,
+  //       itemDesc: order?.description,
+  //       dimensions: "10~10~10~1~0.5~0/",
+  //       pieces: (order?.packageDetails?.length ?? 0) + "",
+  //       weight: totalOrderWeight + "",
+  //       invoiceNumber: order.invoiceNumber + "",
+  //     },
+  //     deliveryDetails: {
+  //       toName: order.customers?.[0]?.name ?? "",
+  //       toAdd: order.customers?.[0]?.address ?? "",
+  //       toCity: order.customers?.[0]?.city ?? "",
+  //       toState: order.customers?.[0]?.state ?? "",
+  //       toPin: order.customers?.[0]?.pincode ?? "",
+  //       toMobile: order.customers?.[0]?.phone ?? "",
+  //       toAddType: "Home",
+  //       toLat: "26.00",
+  //       toLng: "78.00",
+  //       toEmail: order.customers?.[0]?.email ?? "",
+  //     },
+  //     pickupDetails: {
+  //       fromName: order.pickupAddress?.name,
+  //       fromAdd: order.pickupAddress?.address1,
+  //       fromCity: order.pickupAddress?.city,
+  //       fromState: order.pickupAddress?.state,
+  //       fromPin: order.pickupAddress?.pincode,
+  //       fromMobile: order.pickupAddress?.phone,
+  //       fromAddType: "Hub",
+  //       fromLat: "26.00",
+  //       fromLng: "78.00",
+  //       fromEmail: "ankurs@smartr.in",
+  //     },
+  //     returnDetails: {
+  //       rtoName: order.pickupAddress?.name,
+  //       rtoAdd: order.pickupAddress?.address1,
+  //       rtoCity: order.pickupAddress?.city,
+  //       rtoState: order.pickupAddress?.state,
+  //       rtoPin: order.pickupAddress?.pincode,
+  //       rtoMobile: order.pickupAddress?.phone,
+  //       rtoAddType: "Hub",
+  //       rtoLat: "26.00",
+  //       rtoLng: "78.00",
+  //       rtoEmail: "ankurs@smartr.in",
+  //     },
+  //     additionalInformation: {
+  //       customerCode: "SMARTRFOC",
+  //       essentialFlag: "",
+  //       otpFlag: "",
+  //       dgFlag: "",
+  //       isSurface: "true",
+  //       isReverse: "false",
+  //       sellerGSTIN: "06GSTIN678YUIOIN",
+  //       sellerERN: "",
+  //     },
+  //   },
+  // ];
+
   let data = [
     {
       packageDetails: {
         awbNumber: "",
-        orderNumber: "0000000000000000",
-        productType: "WKO", // WKO for surface bookings
-        collectableValue: order?.amount2Collect,
-        declaredValue: order?.totalOrderValue,
-        itemDesc: order?.description,
-        dimensions: "10~10~10~1~0.5~0/",
-        pieces: (order?.packageDetails?.length ?? 0) + "",
-        weight: totalOrderWeight + "",
-        invoiceNumber: order.invoiceNumber + "",
+        orderNumber: "597770",
+        productType: "WKO",
+        collectableValue: "0",
+        declaredValue: "1800.00",
+        itemDesc: "General",
+        dimensions: "21~18~10~1~9~0/",
+        pieces: 1,
+        weight: "9",
+        invoiceNumber: "97755",
       },
       deliveryDetails: {
-        toName: order.customers?.[0]?.name ?? "",
-        toAdd: order.customers?.[0]?.address ?? "",
-        toCity: order.customers?.[0]?.city ?? "",
-        toState: order.customers?.[0]?.state ?? "",
-        toPin: order.customers?.[0]?.pincode ?? "",
-        toMobile: order.customers?.[0]?.phone ?? "",
-        toAddType: "Home",
-        toLat: "26.00",
-        toLng: "78.00",
-        toEmail: order.customers?.[0]?.email ?? "",
+        toName: "KESHAV KOTIAN",
+        toAdd: "D9, MRG SREEVALSAM, THIRUVAMBADY ROAD, ",
+        toCity: "SOUTH WEST DELHI",
+        toState: "Delhi",
+        toPin: "110037",
+        toMobile: "9769353573",
+        toAddType: "",
+        toLat: "",
+        toLng: "",
+        toEmail: "",
       },
       pickupDetails: {
-        fromName: order.pickupAddress?.name,
-        fromAdd: order.pickupAddress?.address1,
-        fromCity: order.pickupAddress?.city,
-        fromState: order.pickupAddress?.state,
-        fromPin: order.pickupAddress?.pincode,
-        fromMobile: order.pickupAddress?.phone,
-        fromAddType: "Hub",
-        fromLat: "26.00",
-        fromLng: "78.00",
-        fromEmail: "ankurs@smartr.in",
+        fromName: "KESHAV ITD",
+        fromAdd: "SOC NO 4,SHOP NO 3,LOVELY SOC,NEAR GANESH, TEMPLE,MAHADA,4 BUNGLOWS,ANDHEI W, ",
+        fromCity: "MUMBAI",
+        fromState: "MAHARASHTRA",
+        fromPin: "400053",
+        fromMobile: "9769353573",
+        fromAddType: "",
+        fromLat: "",
+        fromLng: "",
+        fromEmail: "",
       },
       returnDetails: {
-        rtoName: order.pickupAddress?.name,
-        rtoAdd: order.pickupAddress?.address1,
-        rtoCity: order.pickupAddress?.city,
-        rtoState: order.pickupAddress?.state,
-        rtoPin: order.pickupAddress?.pincode,
-        rtoMobile: order.pickupAddress?.phone,
-        rtoAddType: "Hub",
-        rtoLat: "26.00",
-        rtoLng: "78.00",
-        rtoEmail: "ankurs@smartr.in",
+        rtoName: "KESHAV KOTIAN",
+        rtoAdd: "D9, MRG SREEVALSAM, THIRUVAMBADY ROAD, ",
+        rtoCity: "SOUTH WEST DELHI",
+        rtoState: "Delhi",
+        rtoPin: "110037",
+        rtoMobile: "9769353573",
+        rtoAddType: "",
+        rtoLat: "",
+        rtoLng: "",
+        rtoEmail: "",
       },
       additionalInformation: {
         customerCode: "SMARTRFOC",
@@ -551,7 +686,7 @@ export async function createB2BShipment(req: ExtendedRequest, res: Response, nex
         dgFlag: "",
         isSurface: "true",
         isReverse: "false",
-        sellerGSTIN: "06GSTIN678YUIOIN",
+        sellerGSTIN: "",
         sellerERN: "",
       },
     },
@@ -573,7 +708,7 @@ export async function createB2BShipment(req: ExtendedRequest, res: Response, nex
     console.log("error", error);
     return next(error);
   }
-  
+
   return res.status(500).send({ valid: false, message: "Incomplete route" });
 }
 
@@ -635,24 +770,59 @@ export async function cancelB2BShipment(req: ExtendedRequest, res: Response, nex
   }
 }
 
-type TrackResponse = {
-  status: 0 | 1; // most probably always 1, not sure for 0
-  code: HttpStatusCode;
-  message: string;
-  data: {
-    scans: any;
-  };
-};
-type RequiredTrackResponse = {
-  request_order_id?: string;
-  order_reference_id?: string;
-  tracking_number?: string;
-  carrier_name?: string;
-  date_time?: string;
-  location?: string;
-  action?: string;
-  status_code?: string;
-  status_description?: string;
-  order_date?: string;
-  billing_name?: string;
-};
+export async function getShipemntDetails(req: ExtendedRequest, res: Response, next: NextFunction) {
+  try {
+    const currentDate = new Date();
+
+    // Calculate last 30 days from today
+    const date30DaysAgo = new Date(currentDate);
+    date30DaysAgo.setDate(date30DaysAgo.getDate() - 30);
+
+    // Calculate start and end of today
+    const startOfToday = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+    const endOfToday = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + 1);
+
+    // Calculate start and end of yesterday
+    const startOfYesterday = new Date(startOfToday);
+    startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+    const endOfYesterday = new Date(startOfYesterday);
+    endOfYesterday.setDate(endOfYesterday.getDate() + 1);
+
+    // Fetch today's and yesterday's orders
+    const [orders, todayOrders, yesterdayOrders] = await Promise.all([
+      B2COrderModel.find({
+        orderStage: { $gt: 0 },
+        createdAt: { $gte: date30DaysAgo, $lt: currentDate },
+      }),
+      B2COrderModel.find({ createdAt: { $gte: startOfToday, $lt: endOfToday } }),
+      B2COrderModel.find({ createdAt: { $gte: startOfYesterday, $lt: endOfYesterday } }),
+    ]);
+    // Extract shipment details
+    const shipmentDetails = calculateShipmentDetails(orders);
+
+    // Calculate NDR details
+    const NDRDetails = calculateNDRDetails(orders);
+
+    // Calculate COD details
+    const CODDetails = calculateCODDetails(orders);
+
+    // Calculate today's and yesterday's revenue and average shipping cost
+    const todayRevenue = calculateRevenue(todayOrders);
+    const yesterdayRevenue = calculateRevenue(yesterdayOrders);
+    const todayAverageShippingCost = calculateAverageShippingCost(todayOrders);
+    const yesterdayAverageShippingCost = calculateAverageShippingCost(yesterdayOrders);
+
+    const todayYesterdayAnalysis = {
+      todayOrdersCount: todayOrders.length,
+      yesterdayOrdersCount: yesterdayOrders.length,
+      todayRevenue,
+      yesterdayRevenue,
+      todayAverageShippingCost,
+      yesterdayAverageShippingCost,
+    };
+
+    return res.status(200).json({ shipmentDetails, NDRDetails, CODDetails, todayYesterdayAnalysis });
+  } catch (error) {
+    return res.status(500).json({ message: "Something went wrong" });
+  }
+}

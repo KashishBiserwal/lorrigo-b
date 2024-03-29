@@ -15,7 +15,7 @@ export const createHub = async (req: ExtendedRequest, res: Response, next: NextF
 
   if (!body) return res.status(200).send({ valid: false, message: "payload required" });
 
-  if (!(body?.name && body?.pincode && body?.address1 && body?.address2 && body?.phone)) {
+  if (!(body?.name && body?.pincode && body?.address1 && body?.phone)) {
     return res.status(200).send({
       valid: false,
       message: "Invalid payload",
@@ -31,7 +31,6 @@ export const createHub = async (req: ExtendedRequest, res: Response, next: NextF
       typeof name === "string" &&
       typeof pincode === "number" &&
       typeof address1 === "string" &&
-      typeof address2 === "string" &&
       typeof phone === "number"
     )
   ) {
@@ -188,6 +187,28 @@ export const getSpecificHub = async (req: ExtendedRequest, res: Response, next: 
       hub: specificHub,
     });
   }
+};
+
+export const getCityDetails = async (req: ExtendedRequest, res: Response, next: NextFunction) => {
+  const pincode = req.body.pincode;
+  if (!pincode) {
+    return res.status(200).send({
+      valid: false,
+      message: "pincode required",
+    });
+  }
+  if (typeof pincode !== "number") {
+    return res.status(200).send({
+      valid: false,
+      message: "invalid pincode",
+    });
+  }
+  const pincodeDetails = await getPincodeDetails(pincode);
+  return res.status(200).send({
+    valid: true,
+    city: pincodeDetails?.District,
+    state: pincodeDetails?.StateName,
+  });
 };
 
 // FIXME fix update hub when smartship isnt' login
@@ -352,6 +373,7 @@ export const deleteHub = async (req: ExtendedRequest, res: Response, next: NextF
     message: "incomplete route",
   });
 };
+
 type SMARTSHIP_UPDATE_DATA = {
   status: number;
   code: number;

@@ -2,12 +2,14 @@ import axios from "axios";
 import { B2COrderModel } from "../models/order.model";
 import config from "./config";
 import APIs from "./constants/third_party_apis";
-import { getSmartShipToken } from "./helpers";
+import { getSmartShipToken, getStatusCode } from "./helpers";
 import * as cron from "node-cron";
 import EnvModel from "../models/env.model";
 import https from "node:https";
 import Logger from "./logger";
 import redis from "../models/redis";
+import { trackShipment } from "../controllers/shipment.controller";
+import { RequiredTrackResponse, TrackResponse } from "../types/b2c";
 
 /**
  * Update order with statusCode (2) to cancelled order(3)
@@ -152,18 +154,68 @@ export const CONNECT_SMARTR = async (): Promise<void> => {
  * @emits CANCEL_REQUESTED_ORDER
  * @returns void
  */
-export default function runCron() {
-  const expression4every5Minute = "5 * * * *";
-  const expression4every59Minute = "59 * * * *";
-  const expression4every9_59Hr = "59 9 * * * ";
-  if (
-    cron.validate(expression4every5Minute) &&
-    cron.validate(expression4every59Minute) &&
-    cron.validate(expression4every9_59Hr)
-  ) {
+export const trackOrder = async () => {
+  const orders = await B2COrderModel.find({ orderStage: { $gt: 1 } });
+
+  for (const orderWithOrderReferenceId of orders) {
+    const smartshipToken = await getSmartShipToken();
+    if (!smartshipToken) {
+      Logger.warn("FAILED TO RUN JOB, SMART SHIP TOKEN NOT FOUND");
+      return;
+    }
+
+    const shipmentAPIConfig = { headers: { Authorization: smartshipToken } };
+
+    try {
+      const apiUrl = `${config.SMART_SHIP_API_BASEURL}${APIs.TRACK_SHIPMENT}=${
+        orderWithOrderReferenceId._id + "_" + orderWithOrderReferenceId.order_reference_id
+      }`;
+      const response = await axios.get(apiUrl, shipmentAPIConfig);
+
+      const responseJSON: TrackResponse = response.data;
+      if (responseJSON.message === "success") {
+        const keys: string[] = Object.keys(responseJSON.data.scans);
+        const requiredResponse: RequiredTrackResponse = responseJSON.data.scans[keys[0]][0];
+
+        console.log("requiredResponse: ", requiredResponse);
+
+        const statusCode = getStatusCode(requiredResponse?.status_description ?? "");
+        if (orderWithOrderReferenceId.orderStage !== statusCode) {
+          // Update order status
+          orderWithOrderReferenceId.orderStage = statusCode;
+          orderWithOrderReferenceId.orderStages.push({
+            stage: statusCode,
+            action: requiredResponse?.action ?? "",
+            stageDateTime: new Date(),
+          });
+          await orderWithOrderReferenceId.save();
+        }
+      } else {
+        Logger.err("Error: " + JSON.stringify(responseJSON));
+      }
+    } catch (err) {
+      console.log("inside catch");
+      Logger.err("Error: [TrackOrder]");
+      Logger.err(err);
+    }
+  }
+};
+
+export default async function runCron() {
+  const expression4every2Minutes = "*/2 * * * *";
+  if (cron.validate(expression4every2Minutes)) {
+    cron.schedule(expression4every2Minutes, trackOrder);
+
+    const expression4every5Minute = "5 * * * *";
+    const expression4every59Minute = "59 * * * *";
+    const expression4every9_59Hr = "59 9 * * * ";
+
     cron.schedule(expression4every59Minute, CONNECT_SMARTSHIP);
     cron.schedule(expression4every5Minute, CANCEL_REQUESTED_ORDER);
     cron.schedule(expression4every9_59Hr, CONNECT_SMARTR);
+
     Logger.log("cron scheduled");
+  } else {
+    Logger.log("Invalid cron expression");
   }
 }
