@@ -12,7 +12,6 @@ const sellerSchema = new mongoose.Schema({
   panno: { type: String, required: false },
   margin: { type: Number, min: 0, max: 100, default: 20 },
   vendors: [{ type: mongoose.Schema.Types.ObjectId, ref: "Vendors" }],
-  codPrice: { type: Number, min: 0, default: 40 },
   isVerified: { type: Boolean, default: false },
 });
 

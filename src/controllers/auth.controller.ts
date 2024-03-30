@@ -10,7 +10,6 @@ type SignupBodyType = { email: any; password: any; name: any };
 
 export const signup = async (req: Request, res: Response, next: NextFunction) => {
   const body: SignupBodyType = req.body;
-
   if (!(body?.password && body?.email && body.name)) {
     return res.status(200).send({
       valid: false,

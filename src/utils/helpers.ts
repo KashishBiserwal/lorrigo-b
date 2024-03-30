@@ -10,6 +10,8 @@ import APIs from "./constants/third_party_apis";
 import Logger from "./logger";
 import https from "node:https";
 import redis from "../models/redis";
+import { isValidObjectId } from "mongoose";
+import CustomPricingModel from "../models/custom_pricing.model";
 
 export const validateEmail = (email: string): boolean => {
   return /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)*[a-zA-Z]{2,}))$/.test(
@@ -68,13 +70,56 @@ export const addVendors = async (req: Request, res: Response, next: NextFunction
   try {
     savedVendor = await vendor.save();
   } catch (err) {
-    console.log(err)
+    console.log(err);
     return next(err);
   }
   return res.status(200).send({
     valid: true,
     vendor: savedVendor,
   });
+};
+
+export const updateVendor4Seller = async (req: Request, res: Response, next: NextFunction) => {
+  const body = req.body;
+  if (!isValidPayload(body, ["vendorId", "sellerId"])) {
+    return res.status(200).send({ valid: false, message: "Invalid payload." });
+  }
+  const { vendorId, sellerId } = body;
+  if (!isValidObjectId(vendorId) || !isValidObjectId(sellerId)) {
+    return res.status(200).send({ valid: false, message: "Invalid vendorId or sellerId." });
+  }
+  try {
+    const vendor = await VendorModel.findById(vendorId);
+    if (!vendor) return res.status(200).send({ valid: false, message: "Vendor not found" });
+    delete body?.vendorId;
+    delete body?.sellerId;
+    const previouslySavedPricing = await CustomPricingModel.findOne({ sellerId, vendorId }).lean();
+    let savedPricing;
+    if (previouslySavedPricing) {
+      //update it
+      savedPricing = await CustomPricingModel.findByIdAndUpdate(previouslySavedPricing._id, { ...body }, { new: true });
+      return res.status(200).send({ valid: true, message: "vendor priced updated for user", savedPricing });
+    } else {
+      // create it
+      const toAdd = {
+        vendorId: vendorId,
+        sellerId: sellerId,
+        withinCity: vendor.withinCity,
+        withinZone: vendor.withinZone,
+        withinMetro: vendor.withinMetro,
+        withinRoi: vendor.withinRoi,
+        northEast: vendor.northEast,
+        ...body,
+      };
+      savedPricing = new CustomPricingModel(toAdd);
+      savedPricing = await savedPricing.save();
+      return res.status(200).send({ valid: true, message: "vendor priced updated for user", savedPricing });
+    }
+    return res.status(200).send({ valid: false, message: "Incomplee " });
+  } catch (err) {
+    return next(err);
+  }
+  return res.status(200).send({ valid: false, message: "Not implemented yet" });
 };
 
 export const getSellers = async (req: Request, res: Response, next: NextFunction) => {
@@ -99,10 +144,10 @@ export const isValidPayload = (body: any, field: string[]): boolean => {
   }
   return true;
 };
-
+// TODO: implementation of COD IS REMAINING
 export const ratecalculatorController = async (req: ExtendedRequest, res: Response, next: NextFunction) => {
   const body = req.body;
-
+  const seller = req.seller;
   if (
     !isValidPayload(body, [
       "pickupPincode",
@@ -113,7 +158,8 @@ export const ratecalculatorController = async (req: ExtendedRequest, res: Respon
       "boxWidth",
       "boxHeight",
       "sizeUnit",
-      "isFragileGoods",
+      "paymentType",
+      // "isFragileGoods",
     ])
   ) {
     return res.status(200).send({
@@ -121,70 +167,108 @@ export const ratecalculatorController = async (req: ExtendedRequest, res: Respon
       message: "inalid payload",
     });
   }
-  const {
-    pickupPincode,
-    deliveryPincode,
-    weight,
-    weightUnit,
-    boxLength,
-    boxWidth,
-    boxHeight,
-    sizeUnit,
-    isFragileGoods,
-  } = req.body;
+  try {
+    const data2send = await rateCalculation(
+      body.pickupPincode,
+      body.deliveryPincode,
+      body.weight,
+      body.weightUnit,
+      body.boxLength,
+      body.boxWidth,
+      body.boxHeight,
+      body.sizeUnit,
+      body.paymentType,
+      seller._id,
+      body?.collectableAmount
+    );
+    return res.status(200).send({ valid: true, rates: data2send });
+  } catch (err) {
+    return next(err);
+  }
+};
 
-  const seller = req.seller;
-  Logger.log(seller);
-  const margin = seller.margin;
-
+export const rateCalculation = async (
+  pickupPincode: any,
+  deliveryPincode: any,
+  weight: any,
+  weightUnit: any,
+  boxLength: any,
+  boxWidth: any,
+  boxHeight: any,
+  sizeUnit: any,
+  paymentType: 0 | 1,
+  seller_id: any,
+  collectableAmount?: any
+) => {
+  const numPaymentType = Number(paymentType);
+  if (!(numPaymentType === 0 || numPaymentType === 1)) throw new Error("Invalid paymentType");
+  if (paymentType === 1) {
+    if (!collectableAmount) throw new Error("collectable amount is required.");
+  }
+  if (weightUnit === "g") {
+    weight = (1 / 1000) * weight;
+  }
   let volumetricWeight = null;
   if (sizeUnit === "cm") {
-    volumetricWeight = (boxLength * boxWidth * boxHeight) / 5000;
+    const volume = boxLength * boxWidth * boxHeight;
+    volumetricWeight = Math.round(volume / 5000);
   } else if (sizeUnit === "m") {
-    volumetricWeight = (boxLength * boxWidth * boxHeight) / 5;
-  } else return res.status(200).send({ valid: false, message: "unhandled size unit" });
-  const orderWeight = volumetricWeight > Number(weight) ? volumetricWeight : Number(weight);
+    volumetricWeight = Math.round((boxLength * boxWidth * boxHeight) / 5);
+  } else {
+    throw new Error("unhandled size unit");
+  }
 
   const pickupDetails = await getPincodeDetails(Number(pickupPincode));
   const deliveryDetails = await getPincodeDetails(Number(deliveryPincode));
-  if (!pickupDetails || !deliveryDetails) {
-    return res.status(200).send({ valid: false, message: "invalid pickup or delivery pincode" });
-  }
+
+  if (!pickupDetails || !deliveryDetails) throw new Error("invalid pickup or delivery pincode");
 
   const vendors = await VendorModel.find({});
-  const data2send = vendors.reduce((acc: any[], cv) => {
+  const data2send: {
+    name: string;
+    minWeight: number;
+    charge: number;
+    type: string;
+    expectedPickup: string;
+  }[] = [];
+  for (let i = 0; i < vendors.length; i++) {
+    let orderWeight = volumetricWeight > Number(weight) ? volumetricWeight : Number(weight);
+    const cv = vendors[i];
     let increment_price = null;
+    const userSpecificUpdatedVendorDetails = await CustomPricingModel.find({
+      vendorId: cv._id,
+      sellerId: seller_id,
+    });
+    if (userSpecificUpdatedVendorDetails.length === 1) {
+      cv.withinCity = userSpecificUpdatedVendorDetails[0].withinCity;
+      cv.withinZone = userSpecificUpdatedVendorDetails[0].withinZone;
+      cv.withinMetro = userSpecificUpdatedVendorDetails[0].withinMetro;
+      cv.northEast = userSpecificUpdatedVendorDetails[0].northEast;
+      cv.withinRoi = userSpecificUpdatedVendorDetails[0].withinRoi;
+    }
     if (pickupDetails.District === deliveryDetails.District) {
-      // same city
-      Logger.log("same city");
       increment_price = cv.withinCity;
     } else if (pickupDetails.StateName === deliveryDetails.StateName) {
-      Logger.log("same state");
       // same state
       increment_price = cv.withinZone;
     } else if (
       MetroCitys.find((city) => city === pickupDetails?.District) &&
       MetroCitys.find((city) => city === deliveryDetails?.District)
     ) {
-      Logger.log("metro ");
       // metro citys
       increment_price = cv.withinMetro;
     } else if (
       NorthEastStates.find((state) => state === pickupDetails?.StateName) &&
       NorthEastStates.find((state) => state === deliveryDetails?.StateName)
     ) {
-      Logger.log("northeast");
       // north east
       increment_price = cv.northEast;
     } else {
-      Logger.log("roi");
-      // rest of india
       increment_price = cv.withinRoi;
     }
     if (!increment_price) {
       return [{ message: "invalid incrementPrice" }];
     }
-
     const parterPickupTime = cv.pickupTime;
     const partnerPickupHour = Number(parterPickupTime.split(":")[0]);
     const partnerPickupMinute = Number(parterPickupTime.split(":")[1]);
@@ -202,24 +286,29 @@ export const ratecalculatorController = async (req: ExtendedRequest, res: Respon
     const minWeight = cv.weightSlab;
     // TODO apply cod
     //@ts-ignore
-    const weightIncrementRatio = (orderWeight - minWeight) / cv.incrementWeight;
-    let totalCharge = increment_price.basePrice + increment_price?.incrementPrice * weightIncrementRatio;
-    totalCharge = totalCharge + (margin / 100) * totalCharge;
-    const gst = 0.18 * totalCharge;
-    totalCharge = totalCharge += gst;
+    let totalCharge = 0;
+    totalCharge += increment_price.basePrice;
+    orderWeight = orderWeight - cv.weightSlab;
+    const codPrice = cv.codCharge?.hard;
+    const codAfterPercent = (cv.codCharge?.percent / 100) * collectableAmount;
+    let cod = 0;
+    if (paymentType === 1) {
+      cod = codPrice > codAfterPercent ? codPrice : codAfterPercent;
+    }
+    const weightIncrementRatio = orderWeight / cv.incrementWeight;
+    totalCharge += increment_price.incrementPrice * weightIncrementRatio + cod;
 
-    //@ts-ignore
-    return acc.concat({
+    data2send.push({
       name: cv.name,
       minWeight,
       charge: totalCharge,
       type: cv.type,
       expectedPickup,
     });
-  }, []);
-
-  return res.status(200).send({ valid: true, rates: data2send });
+  }
+  return data2send;
 };
+
 // condition timing should be in the format: "hour:minute:second"
 export const getNextDateWithDesiredTiming = (timing: string): Date => {
   const currentDate = new Date();
@@ -295,12 +384,12 @@ export async function getSMARTRToken(): Promise<string | false> {
 
 export function getStatusCode(description: string): number {
   const statusMap: { [key: string]: number | number[] } = {
-    "Open": 0,
-    "Confirmed": 2,
+    Open: 0,
+    Confirmed: 2,
     "Shipping Label Generated": 3,
-    "Manifested": 4,
-    "Shipped": 10,
-    "Delivered": 11,
+    Manifested: 4,
+    Shipped: 10,
+    Delivered: 11,
     "Delivery Attempted-Out Of Delivery Area": 12,
     "Delivery Attempted-Address Issue / Wrong Address": 13,
     "Delivery Attempted-COD Not ready": 14,
@@ -328,7 +417,7 @@ export function getStatusCode(description: string): number {
     "Shipped - In Transit - Destination Reached": 209,
     "Delivery Not Attempted": 210,
     "RTO - In Transit - Damaged": 212,
-    "Delivery Attempted-Refused by Customer with OTP": 214
+    "Delivery Attempted-Refused by Customer with OTP": 214,
   };
 
   if (statusMap.hasOwnProperty(description)) {
@@ -336,10 +425,8 @@ export function getStatusCode(description: string): number {
     return Array.isArray(statusCode) ? statusCode[0] : statusCode;
   }
 
-  return -1; 
+  return -1;
 }
-
-
 
 export async function isSmartr_surface_servicable(pincode: number): Promise<boolean> {
   /*
