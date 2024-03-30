@@ -341,6 +341,11 @@ export async function createShipment(req: ExtendedRequest, res: Response, next: 
       const savedShipmentResponse = await shipmentResponseToSave.save();
       const awbNumber = externalAPIResponse?.data?.success_order_details?.orders[0]?.awb_number
       order.orderStage = 1;
+      order.orderStages.push({
+        stage: 1,
+        action: "Shipped",
+        stageDateTime: new Date(),
+      });
       order.awb = awbNumber;
       const updatedOrder = await order.save();
       return res.status(200).send({ valid: true, order: updatedOrder, shipment: savedShipmentResponse });
@@ -361,7 +366,7 @@ export async function cancelShipment(req: ExtendedRequest, res: Response, next: 
 
   let order;
   try {
-    order = await B2COrderModel.findOne({ _id: orderId, orderStage: 1, sellerId: req.seller._id }).lean();
+    order = await B2COrderModel.findOne({ _id: orderId, sellerId: req.seller._id }).lean();
   } catch (err) {
     return next(err);
   }
@@ -406,14 +411,36 @@ export async function cancelShipment(req: ExtendedRequest, res: Response, next: 
     );
     if (isAlreadyCancelled) {
       try {
-        const updatedOrder = await B2COrderModel.findByIdAndUpdate(order?._id, { orderStage: 3 }, { new: true });
+        const updatedOrder = await B2COrderModel.findByIdAndUpdate(order?._id, {
+          $push: {
+            orderStages: {
+              stage: -1,
+              action: "Cancelled",
+              stageDateTime: new Date()
+            }
+          },
+          $set: {
+            orderStage: -1
+          }
+        }, { new: true });
         return res.status(200).send({ valid: false, message: "Already Cancelled.", order: updatedOrder });
       } catch (err: unknown) {
         return next(err);
       }
     } else if (isAlreadyRequested) {
       try {
-        const updatedOrder = await B2COrderModel.findByIdAndUpdate(order?._id, { orderStage: 2 }, { new: true });
+        const updatedOrder = await B2COrderModel.findByIdAndUpdate(order?._id, {
+          $push: {
+            orderStages: {
+              stage: -1,
+              action: "Cancelled",
+              stageDateTime: new Date()
+            }
+          },
+          $set: {
+            orderStage: -1
+          }
+        }, { new: true });
         return res
           .status(200)
           .send({ valid: false, message: "Already requested for cancellation.", order: updatedOrder });
@@ -426,7 +453,22 @@ export async function cancelShipment(req: ExtendedRequest, res: Response, next: 
   } else {
     // handling success.
     try {
-      const updatedOrder = await B2COrderModel.findByIdAndUpdate(order?._id, { orderStage: 2 }, { new: true });
+      const updatedOrder = await B2COrderModel.findByIdAndUpdate(
+        order?._id,
+        {
+          $push: {
+            orderStages: {
+              stage: -1,
+              action: "Cancelled",
+              stageDateTime: new Date()
+            }
+          },
+          $set: {
+            orderStage: -1
+          }
+        },
+        { new: true }
+      );
       return res.status(200).send({ valid: true, message: "Order cancelation request Generated", order: updatedOrder });
     } catch (err) {
       return next(err);
@@ -437,53 +479,123 @@ export async function cancelShipment(req: ExtendedRequest, res: Response, next: 
     .send({ valid: false, message: "unhandled section of route", response: externalAPIResponse.data });
 }
 
+
 export async function orderManifest(req: ExtendedRequest, res: Response, next: NextFunction) {
   const body = req.body;
-  const { orderId } = body;
+  const { orderId, pickupData } = body;
 
   if (!(orderId && isValidObjectId(orderId))) {
-    return res.status(200).send({ valid: false, message: "invalid payload" });
+    return res.status(200).send({ valid: false, message: "Invalid payload" });
   }
 
   let order;
   try {
-    order = await B2COrderModel.findOne({ _id: orderId, sellerId: req.seller._id }).lean();
+    order = await B2COrderModel.findOne({ _id: orderId, sellerId: req.seller._id });
   } catch (err) {
     return next(err);
   }
 
-  if (!order) return res.status(200).send({ valid: false, message: "order not found" });
+  if (!order) return res.status(200).send({ valid: false, message: "Order not found" });
 
   const smartshipToken = await getSmartShipToken();
-  if (!smartshipToken) return res.status(200).send({ valid: false, message: "Smarthship ENVs not found" });
+  if (!smartshipToken) return res.status(200).send({ valid: false, message: "Smartship ENVs not found" });
 
   const shipmentAPIConfig = { headers: { Authorization: smartshipToken } };
 
   const requestBody = {
-    // client_order_reference_ids: [order._id + "_" + order.order_reference_id],
-    // client_order_reference_ids: [order._id + "_" + order.order_reference_id],
-    preferred_pickup_date: "2024-03-22",
+    client_order_reference_ids: [order._id + "_" + order.order_reference_id],
+    preferred_pickup_date: pickupData,
     shipment_type: 1,
   };
 
-  const externalAPIResponse = await axios.post(
-    config.SMART_SHIP_API_BASEURL + APIs.ORDER_MANIFEST,
-    requestBody,
-    shipmentAPIConfig
-  );
-  console.log(externalAPIResponse.data, "externalAPIResponse")
-  if (externalAPIResponse.data.status === "403") {
-    return res.status(500).send({ valid: false, message: "Smartships Envs expired" });
-  }
+  order.orderStage = 4;
+  order.orderStages.push({
+    stage: 4,
+    action: "Manifest Generated",
+    stageDateTime: new Date(),
+  });
 
-  const order_manifest_details = externalAPIResponse.data?.data;
+  await order.save();
 
-  if (order_manifest_details?.failure) {
-    return res.status(200).send({ valid: false, message: "Incomplete route", order_manifest_details });
-  } else {
-    return res.status(200).send({ valid: true, message: "Order manifest request Generated", order_manifest_details });
+  try {
+    const externalAPIResponse = await axios.post(
+      config.SMART_SHIP_API_BASEURL + APIs.ORDER_MANIFEST,
+      requestBody,
+      shipmentAPIConfig
+    );
+
+    console.log(externalAPIResponse.data, "externalAPIResponse");
+    if (externalAPIResponse.data.status === "403") {
+      return res.status(500).send({ valid: false, message: "Smartships ENVs expired" });
+    }
+
+    const order_manifest_details = externalAPIResponse.data?.data;
+
+    if (order_manifest_details?.failure) {
+      return res.status(200).send({ valid: false, message: "Incomplete route", order_manifest_details });
+    } else {
+      return res.status(200).send({ valid: true, message: "Order manifest request generated", order_manifest_details });
+    }
+  } catch (error) {
+    return next(error);
   }
 }
+
+// export async function orderManifest(req: ExtendedRequest, res: Response, next: NextFunction) {
+//   const body = req.body;
+//   const { orderId, pickupData } = body;
+
+//   if (!(orderId && isValidObjectId(orderId))) {
+//     return res.status(200).send({ valid: false, message: "invalid payload" });
+//   }
+
+//   let order;
+//   try {
+//     order = await B2COrderModel.findOne({ _id: orderId, sellerId: req.seller._id }).lean();
+//   } catch (err) {
+//     return next(err);
+//   }
+
+//   if (!order) return res.status(200).send({ valid: false, message: "order not found" });
+
+//   const smartshipToken = await getSmartShipToken();
+//   if (!smartshipToken) return res.status(200).send({ valid: false, message: "Smarthship ENVs not found" });
+
+//   const shipmentAPIConfig = { headers: { Authorization: smartshipToken } };
+
+//   const requestBody = {
+//     client_order_reference_ids: [order._id + "_" + order.order_reference_id],
+//     preferred_pickup_date: pickupData,
+//     shipment_type: 1,
+//   };
+
+//   const externalAPIResponse = await axios.post(
+//     config.SMART_SHIP_API_BASEURL + APIs.ORDER_MANIFEST,
+//     requestBody,
+//     shipmentAPIConfig
+//   );
+
+//   order.orderStage = 4;
+//   order.orderStages.push({
+//     stage: 4,
+//     action: "Manifest Generated",
+//     stageDateTime: new Date(),
+//   });
+
+
+//   console.log(externalAPIResponse.data, "externalAPIResponse")
+//   if (externalAPIResponse.data.status === "403") {
+//     return res.status(500).send({ valid: false, message: "Smartships Envs expired" });
+//   }
+
+//   const order_manifest_details = externalAPIResponse.data?.data;
+
+//   if (order_manifest_details?.failure) {
+//     return res.status(200).send({ valid: false, message: "Incomplete route", order_manifest_details });
+//   } else {
+//     return res.status(200).send({ valid: true, message: "Order manifest request Generated", order_manifest_details });
+//   }
+// }
 
 export async function trackShipment(req: ExtendedRequest, res: Response, next: NextFunction) {
   const orderReferenceId = req.query?.id;
@@ -498,7 +610,7 @@ export async function trackShipment(req: ExtendedRequest, res: Response, next: N
   if (!smartshipToken) return res.status(200).send({ valid: false, message: "Smarthship ENVs not found" });
 
   const shipmentAPIConfig = { headers: { Authorization: smartshipToken } };
-  
+
   try {
     const apiUrl = `${config.SMART_SHIP_API_BASEURL}${APIs.TRACK_SHIPMENT}=${orderWithOrderReferenceId._id + "_" + orderReferenceId
       }`;
