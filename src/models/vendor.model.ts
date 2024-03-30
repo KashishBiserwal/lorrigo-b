@@ -7,11 +7,17 @@ const pricingSchema = {
   incrementPrice: { type: Number, required: true, min: 0 },
 };
 
+const codSchema = {
+  hard: { type: Number, required: true, min: 0, defualt: 40 },
+  percent: { type: Number, required: true, min: 0, max: 100, defualt: 1.5 },
+};
+
 export const vendorSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     weightSlab: { type: Number, required: true },
     weightUnit: { type: String, required: true },
+    codCharge: { type: codSchema, required: true, default: { hard: 40, percent: 1.5 } },
     incrementWeight: { type: Number, required: true },
     type: { type: String, required: true }, // surface , air
     pickupTime: { type: String, required: true, defualt: currentTime },

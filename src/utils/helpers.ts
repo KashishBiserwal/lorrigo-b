@@ -187,7 +187,7 @@ export const ratecalculatorController = async (req: ExtendedRequest, res: Respon
   }
 };
 
-const rateCalculation = async (
+export const rateCalculation = async (
   pickupPincode: any,
   deliveryPincode: any,
   weight: any,
@@ -196,23 +196,14 @@ const rateCalculation = async (
   boxWidth: any,
   boxHeight: any,
   sizeUnit: any,
-  paymentType: any,
+  paymentType: 0 | 1,
   seller_id: any,
   collectableAmount?: any
 ) => {
-  //  let { pickupPincode, deliveryPincode, weight, weightUnit, boxLength, boxWidth, boxHeight, sizeUnit, paymentType } =
-  //   req.body;
   const numPaymentType = Number(paymentType);
   if (!(numPaymentType === 0 || numPaymentType === 1)) throw new Error("Invalid paymentType");
-  // return res.status(200).send({ valid: false, message: "Invalid paymentType" });
   if (paymentType === 1) {
-    if (!collectableAmount) {
-      throw new Error("collectable amount is required.");
-    }
-    // if (!isValidPayload(body, ["collectableAmount"])) {
-    //   throw new Error();
-    //   // return res.status(200).send({ valid: false, message: "collectableAmount is required." });
-    // }
+    if (!collectableAmount) throw new Error("collectable amount is required.");
   }
   if (weightUnit === "g") {
     weight = (1 / 1000) * weight;
@@ -226,14 +217,11 @@ const rateCalculation = async (
   } else {
     throw new Error("unhandled size unit");
   }
-  // } else return res.status(200).send({ valid: false, message: "unhandled size unit" });
-  let orderWeight = volumetricWeight > Number(weight) ? volumetricWeight : Number(weight);
 
   const pickupDetails = await getPincodeDetails(Number(pickupPincode));
   const deliveryDetails = await getPincodeDetails(Number(deliveryPincode));
 
   if (!pickupDetails || !deliveryDetails) throw new Error("invalid pickup or delivery pincode");
-  // return res.status(200).send({ valid: false, message: "invalid pickup or delivery pincode" });
 
   const vendors = await VendorModel.find({});
   const data2send: {
@@ -244,6 +232,7 @@ const rateCalculation = async (
     expectedPickup: string;
   }[] = [];
   for (let i = 0; i < vendors.length; i++) {
+    let orderWeight = volumetricWeight > Number(weight) ? volumetricWeight : Number(weight);
     const cv = vendors[i];
     let increment_price = null;
     const userSpecificUpdatedVendorDetails = await CustomPricingModel.find({
@@ -280,7 +269,6 @@ const rateCalculation = async (
     if (!increment_price) {
       return [{ message: "invalid incrementPrice" }];
     }
-
     const parterPickupTime = cv.pickupTime;
     const partnerPickupHour = Number(parterPickupTime.split(":")[0]);
     const partnerPickupMinute = Number(parterPickupTime.split(":")[1]);
@@ -301,8 +289,14 @@ const rateCalculation = async (
     let totalCharge = 0;
     totalCharge += increment_price.basePrice;
     orderWeight = orderWeight - cv.weightSlab;
+    const codPrice = cv.codCharge?.hard;
+    const codAfterPercent = (cv.codCharge?.percent / 100) * collectableAmount;
+    let cod = 0;
+    if (paymentType === 1) {
+      cod = codPrice > codAfterPercent ? codPrice : codAfterPercent;
+    }
     const weightIncrementRatio = orderWeight / cv.incrementWeight;
-    totalCharge += increment_price.incrementPrice * weightIncrementRatio;
+    totalCharge += increment_price.incrementPrice * weightIncrementRatio + cod;
 
     data2send.push({
       name: cv.name,
