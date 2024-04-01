@@ -315,14 +315,13 @@ export const createB2COrder = async (req: ExtendedRequest, res: Response, next: 
 export const getOrders = async (req: ExtendedRequest, res: Response, next: NextFunction) => {
   const sellerId = req.seller._id;
   let { limit = 50, page = 1, status }: { limit?: number; page?: number; status?: string } = req.query;
-  console.log("limit", limit, "page", page, "status", status);
 
   const obj = {
     new: [0],
     "ready-for-pickup": [2, 3, 4],
     "in-transit": [27, 30],
     delivered: [11],
-    ndr: [12, 13, 14, 15, 16, 17],
+    ndr: [-1,12, 13, 14, 15, 16, 17],
     rto: [18, 19],
   };
 

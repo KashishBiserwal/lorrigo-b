@@ -230,6 +230,7 @@ export const rateCalculation = async (
     charge: number;
     type: string;
     expectedPickup: string;
+    smartship_carrier_id: number;
   }[] = [];
   for (let i = 0; i < vendors.length; i++) {
     let orderWeight = volumetricWeight > Number(weight) ? volumetricWeight : Number(weight);
@@ -304,6 +305,7 @@ export const rateCalculation = async (
       charge: totalCharge,
       type: cv.type,
       expectedPickup,
+      smartship_carrier_id: cv.smartship_carrier_id,
     });
   }
   return data2send;

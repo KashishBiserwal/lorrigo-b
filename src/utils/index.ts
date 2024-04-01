@@ -3,6 +3,7 @@ export function calculateShipmentDetails(orders: any[]) {
     let pickupPending = 0;
     let inTransit = 0;
     let delivered = 0;
+    let rto = 0;
 
     orders.forEach(order => {
         totalShipments.push(order);
@@ -10,15 +11,17 @@ export function calculateShipmentDetails(orders: any[]) {
             case 0:
                 pickupPending++;
                 break;
-            case 1:
-                if (!order.pickupAddress) {
-                    pickupPending++;
-                } else {
-                    inTransit++;
-                }
+            case 2, 3, 4:
+                pickupPending++;
                 break;
-            case 4:
+            case 27, 30:
+                inTransit++;
+                break;
+            case 11:
                 delivered++;
+                break;
+            case 18, 19:
+                rto++;
                 break;
             default:
                 break;
@@ -29,31 +32,29 @@ export function calculateShipmentDetails(orders: any[]) {
 }
 
 export function calculateNDRDetails(orders: any[]) {
-    let pickupPending = 0;
-    let inTransit = 0;
-    let delivered = 0;
+
+    let totalNDR = 0;
+    let yourReattempt = 0;
+    let buyerReattempt = 0;
+    let NDRDelivered = 0;
 
     orders.forEach(order => {
         switch (order.orderStage) {
-            case 0:
-                pickupPending++;
+            case 12, 13, 14, 15, 16, 17:
+                totalNDR++;
                 break;
-            case 1:
-                if (!order.pickupAddress) {
-                    pickupPending++;
-                } else {
-                    inTransit++;
-                }
+            case 12, 13, 14:
+                yourReattempt++;
                 break;
-            case 4:
-                delivered++;
+            case 15, 16, 17:
+                buyerReattempt++;
                 break;
             default:
                 break;
         }
     });
 
-    return { totalShipments: orders.length, pickupPending, inTransit, delivered };
+    return { TotalNRD: orders.length, buyerReattempt, yourReattempt, NDRDelivered };
 }
 
 export function calculateCODDetails(orders: any[]) {
