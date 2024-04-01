@@ -315,13 +315,21 @@ export const createB2COrder = async (req: ExtendedRequest, res: Response, next: 
 export const getOrders = async (req: ExtendedRequest, res: Response, next: NextFunction) => {
   const sellerId = req.seller._id;
   let { limit = 50, page = 1, status }: { limit?: number; page?: number; status?: string } = req.query;
+<<<<<<< HEAD
+=======
+  console.log("limit", limit, "page", page, "status", status);
+>>>>>>> 56e9280e13a8fe7fc5cd3a8810c3f5116a4f73ad
 
   const obj = {
     new: [0],
     "ready-for-pickup": [2, 3, 4],
     "in-transit": [27, 30],
     delivered: [11],
+<<<<<<< HEAD
     ndr: [-1,12, 13, 14, 15, 16, 17],
+=======
+    ndr: [12, 13, 14, 15, 16, 17],
+>>>>>>> 56e9280e13a8fe7fc5cd3a8810c3f5116a4f73ad
     rto: [18, 19],
   };
 
@@ -468,6 +476,7 @@ export const getCourier = async (req: ExtendedRequest, res: Response, next: Next
       return next(err);
     }
   }
+<<<<<<< HEAD
   console.log("order details");
   console.log(orderDetails);
   console.log("order details");
@@ -496,6 +505,156 @@ export const getCourier = async (req: ExtendedRequest, res: Response, next: Next
     sellerId,
     collectableAmount
   );
+=======
+  //TODO apply COD
+  // @ts-ignore
+  // const totalBoxWeight = orderDetails?.boxWeight * orderDetails?.numberOfBox;
+  const totalOrderWeight = orderDetails?.orderWeight;
+  let orderWeight: number | null = null;
+
+  console.log("orderDetails", new RegExp("^cm", "i").test(orderDetails?.orderSizeUnit), orderDetails?.orderSizeUnit);
+  if (new RegExp("cm", "i").test(orderDetails?.orderSizeUnit)) {
+    const totalVolumetricWeight =
+      (orderDetails?.orderBoxHeight * orderDetails?.orderBoxWidth * orderDetails?.orderBoxLength) / 5000;
+    orderWeight = totalOrderWeight > totalVolumetricWeight ? totalOrderWeight : totalVolumetricWeight;
+  } else if (new RegExp("kg", "i").test(orderDetails?.orderWeightUnit)) {
+    const totalVolumetricWeight =
+      (orderDetails?.orderBoxHeight * orderDetails?.orderBoxWidth * orderDetails?.orderBoxLength) / 5;
+    orderWeight = totalOrderWeight > totalVolumetricWeight ? totalOrderWeight : totalVolumetricWeight;
+  } else {
+    return res
+      .status(200)
+      .send({ valid: false, message: 'Unhandled orderSizeUnit, It should be either "m" or "cm".0' });
+  }
+  if (orderWeight === null) {
+    return res.status(200).send({
+      valid: false,
+      message: `unhandled box size unit, sizeUnit = ${orderDetails?.sizeUnit}`,
+    });
+  }
+  // @ts-ignore
+  let pickupAddress: PickupAddress = orderDetails?.pickupAddress;
+  // @ts-ignore
+  const customerDetails = orderDetails.customerDetails;
+  const margin = seller.margin || 100;
+  const vendors = seller.vendors;
+
+  let vendorsDetails;
+  try {
+    let queryCondition = vendors.map((id: string) => {
+      return { _id: id };
+    });
+
+    vendorsDetails = await VendorModel.find({ $or: queryCondition });
+  } catch (err) {
+    return next(err);
+  }
+  /*
+    orderDetails, vendors
+  */
+
+  if (!vendorsDetails) {
+    return res.status(200).send({
+      valid: false,
+      message: "Invalid vendor",
+    });
+  }
+  const pickupPinCode = pickupAddress?.pincode;
+  const deliveryPincode = Number(customerDetails.get("pincode"));
+
+  const pickupPinCodeDetails = await getPincodeDetails(Number(pickupPinCode));
+  const deliveryPinCodeDetails = await getPincodeDetails(Number(deliveryPincode));
+
+  if (!pickupPinCodeDetails || !deliveryPinCodeDetails) {
+    return res.status(200).send({
+      valid: false,
+      message: "invalid pickup or delivery pincode",
+    });
+  }
+
+  const data2send = vendorsDetails.reduce((acc: any[], cv) => {
+    let increment_price = null;
+    if (pickupPinCodeDetails.District === deliveryPinCodeDetails.District) {
+      // same city
+      Logger.log("same city");
+      increment_price = cv.withinCity;
+    } else if (pickupPinCodeDetails.StateName === deliveryPinCodeDetails.StateName) {
+      Logger.log("same state");
+      // same state
+      increment_price = cv.withinZone;
+    } else if (
+      MetroCitys.find((city) => city === pickupPinCodeDetails?.District) &&
+      MetroCitys.find((city) => city === deliveryPinCodeDetails?.District)
+    ) {
+      Logger.log("metro ");
+      // metro citys
+      increment_price = cv.withinMetro;
+    } else if (
+      NorthEastStates.find((state) => state === pickupPinCodeDetails?.StateName) &&
+      NorthEastStates.find((state) => state === deliveryPinCodeDetails?.StateName)
+    ) {
+      Logger.log("northeast");
+      // north east
+      increment_price = cv.northEast;
+    } else {
+      // rest of india
+      increment_price = cv.withinRoi;
+    }
+    if (!increment_price) {
+      return [{ message: "invalid incrementPrice" }];
+    }
+
+    const parterPickupTime = cv.pickupTime;
+    const partnerPickupHour = Number(parterPickupTime.split(":")[0]);
+    const partnerPickupMinute = Number(parterPickupTime.split(":")[1]);
+    const partnerPickupSecond = Number(parterPickupTime.split(":")[2]);
+    const pickupTime = new Date(new Date().setHours(partnerPickupHour, partnerPickupMinute, partnerPickupSecond, 0));
+
+    const currentTime = new Date();
+    let expectedPickup: string;
+    if (pickupTime < currentTime) {
+      expectedPickup = "Tomorrow";
+    } else {
+      expectedPickup = "Today";
+    }
+
+    const minWeight = cv.weightSlab;
+    //@ts-ignore
+    const weightIncrementRatio = (orderWeight - minWeight) / cv.incrementWeight;
+    let totalCharge = increment_price.basePrice + increment_price?.incrementPrice * weightIncrementRatio;
+    totalCharge = totalCharge + (margin / 100) * totalCharge;
+    const gst = (18 / 100) * totalCharge;
+    totalCharge = totalCharge += gst;
+
+    //@ts-ignore
+    return acc.concat({
+      name: cv.name,
+      minWeight,
+      charge: totalCharge,
+      type: cv.type,
+      expectedPickup,
+      orderWeight,
+      smartship_carrier_id: cv.smartship_carrier_id,
+      // orderDetails: {
+      //   totalValue: orderDetails?.totalValue,
+      //   shipmentValue: orderDetails?.shipmentValue,
+      //   taxValue: orderDetails?.taxValue,
+      //   orderWeight: orderWeight,
+      //   pickupDetails: {
+      //     name: pickupAddress?.name,
+      //     pincode: pickupAddress.pincode,
+      //     city: pickupAddress.city,
+      //     state: pickupAddress.state,
+      //     address1: pickupAddress.address1,
+      //     address2: pickupAddress.address2,
+      //     phone: pickupAddress.phone,
+      //   },
+      //   customerDetails,
+      // },
+    });
+  }, []);
+
+>>>>>>> 56e9280e13a8fe7fc5cd3a8810c3f5116a4f73ad
   return res.status(200).send({
     valid: true,
     courierPartner: data2send,

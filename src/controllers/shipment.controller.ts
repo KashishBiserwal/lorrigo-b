@@ -253,7 +253,6 @@ export async function createShipment(req: ExtendedRequest, res: Response, next: 
       return res.status(200).send({ valid: false, message: "Product details not found" });
     }
   } catch (err) {
-
     return next(err);
   }
   const productValueWithTax =
@@ -340,7 +339,7 @@ export async function createShipment(req: ExtendedRequest, res: Response, next: 
     const shipmentResponseToSave = new ShipmentResponseModel({ order: order._id, response: externalAPIResponse });
     try {
       const savedShipmentResponse = await shipmentResponseToSave.save();
-      const awbNumber = externalAPIResponse?.data?.success_order_details?.orders[0]?.awb_number
+      const awbNumber = externalAPIResponse?.data?.success_order_details?.orders[0]?.awb_number;
       order.orderStage = 1;
       order.orderStages.push({
         stage: 1,
@@ -509,26 +508,15 @@ export async function orderManifest(req: ExtendedRequest, res: Response, next: N
     shipment_type: 1,
   };
 
-  order.orderStage = 4;
-  order.orderStages.push({
-    stage: 4,
-    action: "Manifest Generated",
-    stageDateTime: new Date(),
-  });
-
-  await order.save();
-
-  try {
-    const externalAPIResponse = await axios.post(
-      config.SMART_SHIP_API_BASEURL + APIs.ORDER_MANIFEST,
-      requestBody,
-      shipmentAPIConfig
-    );
-
-    console.log(externalAPIResponse.data, "externalAPIResponse");
-    if (externalAPIResponse.data.status === "403") {
-      return res.status(500).send({ valid: false, message: "Smartships ENVs expired" });
-    }
+  const externalAPIResponse = await axios.post(
+    config.SMART_SHIP_API_BASEURL + APIs.ORDER_MANIFEST,
+    requestBody,
+    shipmentAPIConfig
+  );
+  console.log(externalAPIResponse.data, "externalAPIResponse")
+  if (externalAPIResponse.data.status === "403") {
+    return res.status(500).send({ valid: false, message: "Smartships Envs expired" });
+  }
 
     const order_manifest_details = externalAPIResponse.data?.data;
 
@@ -613,8 +601,9 @@ export async function trackShipment(req: ExtendedRequest, res: Response, next: N
   const shipmentAPIConfig = { headers: { Authorization: smartshipToken } };
 
   try {
-    const apiUrl = `${config.SMART_SHIP_API_BASEURL}${APIs.TRACK_SHIPMENT}=${orderWithOrderReferenceId._id + "_" + orderReferenceId
-      }`;
+    const apiUrl = `${config.SMART_SHIP_API_BASEURL}${APIs.TRACK_SHIPMENT}=${
+      orderWithOrderReferenceId._id + "_" + orderReferenceId
+    }`;
     const response = await axios.get(apiUrl, shipmentAPIConfig);
 
     const responseJSON: TrackResponse = response.data;
@@ -622,11 +611,11 @@ export async function trackShipment(req: ExtendedRequest, res: Response, next: N
       const keys: string[] = Object.keys(responseJSON.data.scans);
       const requiredResponse: RequiredTrackResponse = responseJSON.data.scans[keys[0]][0];
       // Update order status
-      const statusCode = getStatusCode(requiredResponse?.status_description ?? '');
+      const statusCode = getStatusCode(requiredResponse?.status_description ?? "");
       orderWithOrderReferenceId.orderStage = statusCode;
       orderWithOrderReferenceId.orderStages.push({
         stage: statusCode,
-        action: requiredResponse?.action ?? '',
+        action: requiredResponse?.action ?? "",
         stageDateTime: new Date(),
       });
 
@@ -744,66 +733,66 @@ export async function createB2BShipment(req: ExtendedRequest, res: Response, nex
 
   let data = [
     {
-      "packageDetails": {
-        "awbNumber": "",
-        "orderNumber": "597770",
-        "productType": "WKO",
-        "collectableValue": "0",
-        "declaredValue": "1800.00",
-        "itemDesc": "General",
-        "dimensions": "21~18~10~1~9~0/",
-        "pieces": 1,
-        "weight": "9",
-        "invoiceNumber": "97755"
+      packageDetails: {
+        awbNumber: "",
+        orderNumber: "597770",
+        productType: "WKO",
+        collectableValue: "0",
+        declaredValue: "1800.00",
+        itemDesc: "General",
+        dimensions: "21~18~10~1~9~0/",
+        pieces: 1,
+        weight: "9",
+        invoiceNumber: "97755",
       },
-      "deliveryDetails": {
-        "toName": "KESHAV KOTIAN",
-        "toAdd": "D9, MRG SREEVALSAM, THIRUVAMBADY ROAD, ",
-        "toCity": "SOUTH WEST DELHI",
-        "toState": "Delhi",
-        "toPin": "110037",
-        "toMobile": "9769353573",
-        "toAddType": "",
-        "toLat": "",
-        "toLng": "",
-        "toEmail": ""
+      deliveryDetails: {
+        toName: "KESHAV KOTIAN",
+        toAdd: "D9, MRG SREEVALSAM, THIRUVAMBADY ROAD, ",
+        toCity: "SOUTH WEST DELHI",
+        toState: "Delhi",
+        toPin: "110037",
+        toMobile: "9769353573",
+        toAddType: "",
+        toLat: "",
+        toLng: "",
+        toEmail: "",
       },
-      "pickupDetails": {
-        "fromName": "KESHAV ITD",
-        "fromAdd": "SOC NO 4,SHOP NO 3,LOVELY SOC,NEAR GANESH, TEMPLE,MAHADA,4 BUNGLOWS,ANDHEI W, ",
-        "fromCity": "MUMBAI",
-        "fromState": "MAHARASHTRA",
-        "fromPin": "400053",
-        "fromMobile": "9769353573",
-        "fromAddType": "",
-        "fromLat": "",
-        "fromLng": "",
-        "fromEmail": ""
+      pickupDetails: {
+        fromName: "KESHAV ITD",
+        fromAdd: "SOC NO 4,SHOP NO 3,LOVELY SOC,NEAR GANESH, TEMPLE,MAHADA,4 BUNGLOWS,ANDHEI W, ",
+        fromCity: "MUMBAI",
+        fromState: "MAHARASHTRA",
+        fromPin: "400053",
+        fromMobile: "9769353573",
+        fromAddType: "",
+        fromLat: "",
+        fromLng: "",
+        fromEmail: "",
       },
-      "returnDetails": {
-        "rtoName": "KESHAV KOTIAN",
-        "rtoAdd": "D9, MRG SREEVALSAM, THIRUVAMBADY ROAD, ",
-        "rtoCity": "SOUTH WEST DELHI",
-        "rtoState": "Delhi",
-        "rtoPin": "110037",
-        "rtoMobile": "9769353573",
-        "rtoAddType": "",
-        "rtoLat": "",
-        "rtoLng": "",
-        "rtoEmail": ""
+      returnDetails: {
+        rtoName: "KESHAV KOTIAN",
+        rtoAdd: "D9, MRG SREEVALSAM, THIRUVAMBADY ROAD, ",
+        rtoCity: "SOUTH WEST DELHI",
+        rtoState: "Delhi",
+        rtoPin: "110037",
+        rtoMobile: "9769353573",
+        rtoAddType: "",
+        rtoLat: "",
+        rtoLng: "",
+        rtoEmail: "",
       },
-      "additionalInformation": {
-        "customerCode": "SMARTRFOC",
-        "essentialFlag": "",
-        "otpFlag": "",
-        "dgFlag": "",
-        "isSurface": "true",
-        "isReverse": "false",
-        "sellerGSTIN": "",
-        "sellerERN": ""
-      }
-    }
-  ]
+      additionalInformation: {
+        customerCode: "SMARTRFOC",
+        essentialFlag: "",
+        otpFlag: "",
+        dgFlag: "",
+        isSurface: "true",
+        isReverse: "false",
+        sellerGSTIN: "",
+        sellerERN: "",
+      },
+    },
+  ];
 
   const apiConfig = {
     headers: {
@@ -901,15 +890,14 @@ export async function getShipemntDetails(req: ExtendedRequest, res: Response, ne
     const endOfYesterday = new Date(startOfYesterday);
     endOfYesterday.setDate(endOfYesterday.getDate() + 1);
 
-
     // Fetch today's and yesterday's orders
     const [orders, todayOrders, yesterdayOrders] = await Promise.all([
       B2COrderModel.find({
         orderStage: { $gt: 0 },
-        createdAt: { $gte: date30DaysAgo, $lt: currentDate }
+        createdAt: { $gte: date30DaysAgo, $lt: currentDate },
       }),
       B2COrderModel.find({ createdAt: { $gte: startOfToday, $lt: endOfToday } }),
-      B2COrderModel.find({ createdAt: { $gte: startOfYesterday, $lt: endOfYesterday } })
+      B2COrderModel.find({ createdAt: { $gte: startOfYesterday, $lt: endOfYesterday } }),
     ]);
     // Extract shipment details
     const shipmentDetails = calculateShipmentDetails(orders);
@@ -932,11 +920,10 @@ export async function getShipemntDetails(req: ExtendedRequest, res: Response, ne
       todayRevenue,
       yesterdayRevenue,
       todayAverageShippingCost,
-      yesterdayAverageShippingCost
+      yesterdayAverageShippingCost,
     };
 
     return res.status(200).json({ shipmentDetails, NDRDetails, CODDetails, todayYesterdayAnalysis });
-
   } catch (error) {
     return res.status(500).json({ message: "Something went wrong" });
   }

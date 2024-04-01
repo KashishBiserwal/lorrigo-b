@@ -167,7 +167,9 @@ export const trackOrder = async () => {
     const shipmentAPIConfig = { headers: { Authorization: smartshipToken } };
 
     try {
-      const apiUrl = `${config.SMART_SHIP_API_BASEURL}${APIs.TRACK_SHIPMENT}=${orderWithOrderReferenceId._id + "_" + orderWithOrderReferenceId.order_reference_id}`;
+      const apiUrl = `${config.SMART_SHIP_API_BASEURL}${APIs.TRACK_SHIPMENT}=${
+        orderWithOrderReferenceId._id + "_" + orderWithOrderReferenceId.order_reference_id
+      }`;
       const response = await axios.get(apiUrl, shipmentAPIConfig);
 
       const responseJSON: TrackResponse = response.data;
@@ -177,29 +179,27 @@ export const trackOrder = async () => {
 
         console.log("requiredResponse: ", requiredResponse);
 
-        const statusCode = getStatusCode(requiredResponse?.status_description ?? '');
+        const statusCode = getStatusCode(requiredResponse?.status_description ?? "");
         if (orderWithOrderReferenceId.orderStage !== statusCode) {
           // Update order status
           orderWithOrderReferenceId.orderStage = statusCode;
           orderWithOrderReferenceId.orderStages.push({
             stage: statusCode,
-            action: requiredResponse?.action ?? '',
+            action: requiredResponse?.action ?? "",
             stageDateTime: new Date(),
           });
           await orderWithOrderReferenceId.save();
         }
-
       } else {
         Logger.err("Error: " + JSON.stringify(responseJSON));
       }
     } catch (err) {
-      console.log("inside catch")
+      console.log("inside catch");
       Logger.err("Error: [TrackOrder]");
       Logger.err(err);
     }
   }
 };
-
 
 export default async function runCron() {
   const expression4every2Minutes = "*/2 * * * *";

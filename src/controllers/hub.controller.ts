@@ -209,7 +209,7 @@ export const getCityDetails = async (req: ExtendedRequest, res: Response, next: 
     city: pincodeDetails?.District,
     state: pincodeDetails?.StateName,
   });
-}
+};
 
 // FIXME fix update hub when smartship isnt' login
 /*
