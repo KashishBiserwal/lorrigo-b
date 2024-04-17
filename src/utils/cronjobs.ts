@@ -2,12 +2,11 @@ import axios from "axios";
 import { B2COrderModel } from "../models/order.model";
 import config from "./config";
 import APIs from "./constants/third_party_apis";
-import { getSmartShipToken, getStatusCode } from "./helpers";
+import { getActionFromStatusCode, getShiprocketToken, getSmartShipToken, getStatusCode } from "./helpers";
 import * as cron from "node-cron";
 import EnvModel from "../models/env.model";
 import https from "node:https";
 import Logger from "./logger";
-import redis from "../models/redis";
 import { trackShipment } from "../controllers/shipment.controller";
 import { RequiredTrackResponse, TrackResponse } from "../types/b2c";
 
@@ -78,15 +77,7 @@ export const CONNECT_SMARTSHIP = () => {
         .then(() => {
           //@ts-ignore
           const token = `${savedEnv?.token_type} ${savedEnv?.access_token}`;
-          console.log("token: ", token);
-          // redis.set("token:smartship", token);
-          // redis.expire("token:smartship", 3600, (err) => {
-          //   if (err) {
-          //     Logger.warn(err);
-          //   } else {
-          //     Logger.log("smartship token cached.");
-          //   }
-          // });
+          // console.log("token: ", token);
           savedEnv
             .save()
             .then((r) => {
@@ -104,6 +95,42 @@ export const CONNECT_SMARTSHIP = () => {
     })
     .catch((err) => {
       Logger.err("Error, smartship:" + JSON.stringify(err?.response?.data));
+    });
+};
+
+export const CONNECT_SHIPROCKET = async (): Promise<void> => {
+  const requestBody = {
+    email: config.SHIPROCKET_USERNAME,
+    password: config.SHIPROCKET_PASSWORD,
+  };
+  axios
+    .post("https://apiv2.shiprocket.in/v1/external/auth/login", requestBody)
+    .then((r) => {
+      const responseBody = r.data;
+      const savedEnv = new EnvModel({ name: "SHIPROCKET", ...responseBody });
+      EnvModel.deleteMany({ name: "SHIPROCKET" })
+        .then(() => {
+          //@ts-ignore
+          const token = `Bearer ${savedEnv?.token}`;
+          console.log("Shiprocket token: ", token);
+          savedEnv
+            .save()
+            .then((r) => {
+              Logger.plog("Shiprocket ENVs, updated successfully");
+            })
+            .catch((err) => {
+              Logger.log("Error: while adding environment variable to ENV Document");
+              Logger.log(err);
+            });
+        })
+        .catch((err) => {
+          Logger.log("Failed to clean up environment variables Document");
+          Logger.log(err);
+        });
+    })
+    .catch((err) => {
+      console.log(err)
+      Logger.err("Error, shiprocket:" + JSON.stringify(err?.response?.data));
     });
 };
 
@@ -130,14 +157,6 @@ export const CONNECT_SMARTR = async (): Promise<void> => {
       const env = new EnvModel({ name: "SMARTR", ...responseJSON });
       //@ts-ignore
       const token = env?.data?.token_type + " " + env?.data?.access_token;
-      // redis.set("token:smartr", token);
-      // redis.expire("token:smartr", 36000, (err, next) => {
-      //   if (err) {
-      //     Logger.warn("failed to set ttl to token:smartr");
-      //   } else {
-      //     Logger.log("SMARTr, ttl expiration set");
-      //   }
-      // });
       const savedEnv = await env.save();
       Logger.plog("SMARTR LOGGEDIN: " + JSON.stringify(savedEnv));
       // }
@@ -154,8 +173,9 @@ export const CONNECT_SMARTR = async (): Promise<void> => {
  * @emits CANCEL_REQUESTED_ORDER
  * @returns void
  */
-export const trackOrder = async () => {
+export const trackOrder_Smartship = async () => {
   const orders = await B2COrderModel.find({ orderStage: { $gt: 1 } });
+  // console.log(orders.length, "orders found")
 
   for (const orderWithOrderReferenceId of orders) {
     const smartshipToken = await getSmartShipToken();
@@ -167,9 +187,7 @@ export const trackOrder = async () => {
     const shipmentAPIConfig = { headers: { Authorization: smartshipToken } };
 
     try {
-      const apiUrl = `${config.SMART_SHIP_API_BASEURL}${APIs.TRACK_SHIPMENT}=${
-        orderWithOrderReferenceId._id + "_" + orderWithOrderReferenceId.order_reference_id
-      }`;
+      const apiUrl = `${config.SMART_SHIP_API_BASEURL}${APIs.TRACK_SHIPMENT}=${orderWithOrderReferenceId._id + "_" + orderWithOrderReferenceId.order_reference_id}`;
       const response = await axios.get(apiUrl, shipmentAPIConfig);
 
       const responseJSON: TrackResponse = response.data;
@@ -177,39 +195,115 @@ export const trackOrder = async () => {
         const keys: string[] = Object.keys(responseJSON.data.scans);
         const requiredResponse: RequiredTrackResponse = responseJSON.data.scans[keys[0]][0];
 
-        console.log("requiredResponse: ", requiredResponse);
+        const statusCode = getStatusCode(requiredResponse?.status_description ?? '');
+        const action = getActionFromStatusCode(statusCode, requiredResponse?.action ?? '');
+        // console.log("statusCode: ", statusCode, action)
 
-        const statusCode = getStatusCode(requiredResponse?.status_description ?? "");
         if (orderWithOrderReferenceId.orderStage !== statusCode) {
+          // console.log("Updating order status...", orderWithOrderReferenceId._id, orderWithOrderReferenceId.order_reference_id);
           // Update order status
           orderWithOrderReferenceId.orderStage = statusCode;
           orderWithOrderReferenceId.orderStages.push({
             stage: statusCode,
-            action: requiredResponse?.action ?? "",
+            action: action,
             stageDateTime: new Date(),
           });
-          await orderWithOrderReferenceId.save();
+          try {
+            await orderWithOrderReferenceId.save();
+          } catch (error) {
+            Logger.err("Error occurred while saving order status:", error);
+          }
         }
       } else {
+        // console.log("Error: ", JSON.stringify(responseJSON));
         Logger.err("Error: " + JSON.stringify(responseJSON));
       }
     } catch (err) {
-      console.log("inside catch");
-      Logger.err("Error: [TrackOrder]");
+      Logger.err("Error: [TrackOrder_Smartship]");
       Logger.err(err);
     }
   }
 };
 
+export const trackOrder_Shiprocket = async () => {
+  const orders = await B2COrderModel.find({
+    orderStage: { $gt: 1 },
+    shiprocket_order_id: { $exists: true}
+});
+console.log(orders.length, "orders found")
+  // console.log(orders.length, "orders found")
+
+  for (const orderWithOrderReferenceId of orders) {
+    console.log("SR_response");
+
+    try {
+      const shiprocketToken = await getShiprocketToken();
+      if (!shiprocketToken) {
+        console.log("FAILED TO RUN JOB, SHIPROCKET TOKEN NOT FOUND");
+        return;
+      }
+      
+      const apiUrl = `${config.SHIPROCKET_API_BASEURL}${APIs.SHIPROCKET_ORDER_TRACKING}/${orderWithOrderReferenceId.awb}`;
+      const response = await axios.get(apiUrl, {
+        headers: {
+          Authorization: shiprocketToken
+        }
+      });
+
+
+      console.log(response.data.tracking_data.shipment_status, "SR_response");
+      if(response.data.tracking_data.shipment_status){
+        const statusCode = getStatusCode(response.data.tracking_data.shipment_status);
+        const action = getActionFromStatusCode(statusCode, response.data.tracking_data.shipment_status);
+        console.log("statusCode: ", statusCode, action)
+
+        if (orderWithOrderReferenceId.orderStage !== statusCode) {
+          console.log("Updating order status...", orderWithOrderReferenceId._id, orderWithOrderReferenceId.order_reference_id);
+          // Update order status
+          orderWithOrderReferenceId.orderStage = statusCode;
+          orderWithOrderReferenceId.orderStages.push({
+            stage: statusCode,
+            action: action,
+            stageDateTime: new Date(),
+          });
+          try {
+            await orderWithOrderReferenceId.save();
+          } catch (error) {
+            console.log("Error occurred while saving order status:", error);
+          }
+        }
+      }
+
+
+      // const responseJSON: TrackResponse = response.data;
+      // if (responseJSON.message === "success") {
+      //   const keys: string[] = Object.keys(responseJSON.data.scans);
+      //   const requiredResponse: RequiredTrackResponse = responseJSON.data.scans[keys[0]][0];
+
+      //   const statusCode = getStatusCode(requiredResponse?.status_description ?? '');
+      //   const action = getActionFromStatusCode(statusCode, requiredResponse?.action ?? '');
+      //   // console.log("statusCode: ", statusCode, action)
+      // }
+
+    } catch (err) {
+      console.log(err, "SR_error");
+      
+      Logger.err(err);
+    }
+  }
+};
+
+
 export default async function runCron() {
   const expression4every2Minutes = "*/2 * * * *";
   if (cron.validate(expression4every2Minutes)) {
-    cron.schedule(expression4every2Minutes, trackOrder);
+    cron.schedule(expression4every2Minutes, trackOrder_Smartship);
+    cron.schedule(expression4every2Minutes, trackOrder_Shiprocket);
 
     const expression4every5Minute = "5 * * * *";
     const expression4every59Minute = "59 * * * *";
     const expression4every9_59Hr = "59 9 * * * ";
-
+    cron.schedule(expression4every59Minute, CONNECT_SHIPROCKET);
     cron.schedule(expression4every59Minute, CONNECT_SMARTSHIP);
     cron.schedule(expression4every5Minute, CANCEL_REQUESTED_ORDER);
     cron.schedule(expression4every9_59Hr, CONNECT_SMARTR);

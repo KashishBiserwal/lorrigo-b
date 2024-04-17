@@ -1,3 +1,6 @@
+
+/* Smartship */
+
 export const HUB_REGISTRATION = "/v2/app/Fulfillmentservice/hubRegistration";
 export const HUB_UPDATE = "/v2/app/Fulfillmentservice/updateHubDetails";
 export const HUB_DELETE = "/v2/app/Fulfillmentservice/deleteHub";
@@ -10,6 +13,7 @@ export const CANCEL_SHIPMENT = "/v2/app/Fulfillmentservice/orderCancellation";
  * append order_reference_id
  * eg: TRACK_SHIPMENT + order_reference_id
  */
+export const ORDER_REATTEMPT = "/v2/app/Fulfillmentservice/orderReattempt";
 export const TRACK_SHIPMENT = "/v1/Trackorder?order_reference_ids"; // url => TRACK_SHIPMENT+"=order_reference_id"
 
 export const ORDER_MANIFEST = "/v2/app/Fulfillmentservice/createManifest";
@@ -26,6 +30,19 @@ const CANCEL_SMARTR_ORDER = "https://uat.smartr.in/api/v1/cancellation/";
  */
 const PIN_CODE = "https://uat.smartr.in/api/v1/pincode/";
 
+
+/* Shiprocket API */
+
+// export const CREATE_ORDER = "/v1/external/orders/create-order";
+const CREATE_PICKUP_LOCATION = "/v1/external/settings/company/addpickup";
+const CREATE_SHIPROCKET_ORDER = "/v1/external/orders/create/adhoc";
+const GENRATE_AWB_SHIPROCKET = "/v1/external/courier/assign/awb";
+const LIST_SHIPROCKET_COURIER = "/v1/external/courier/courierListWithCounts";
+const SHIPROCKET_ORDER_COURIER = "/v1/external/courier/serviceability";
+const CANCEL_SHIPMENT_SHIPROCKET = "/v1/external/orders/cancel/shipment/awbs";
+const GET_MANIFEST_SHIPROCKET = "/v1/external/courier/generate/pickup"
+const SHIPROCKET_ORDER_TRACKING = "/v1/external/courier/track/awb";
+
 const APIs = {
   HUB_REGISTRATION,
   HUB_UPDATE,
@@ -33,6 +50,7 @@ const APIs = {
   CREATE_SHIPMENT,
   HUB_SERVICEABILITY,
   CANCEL_SHIPMENT,
+  ORDER_REATTEMPT,
   TRACK_SHIPMENT,
   CREATE_SMARTR_ORDER,
   TRACK_SMARTR_ORDER,
@@ -46,5 +64,15 @@ const APIs = {
    * for signle apply query with key pincode=pincodeNumber
    */
   PIN_CODE,
+
+
+  CREATE_PICKUP_LOCATION,
+  CREATE_SHIPROCKET_ORDER,
+  LIST_SHIPROCKET_COURIER,
+  GENRATE_AWB_SHIPROCKET,
+  SHIPROCKET_ORDER_COURIER,
+  CANCEL_SHIPMENT_SHIPROCKET,
+  GET_MANIFEST_SHIPROCKET,
+  SHIPROCKET_ORDER_TRACKING
 };
 export default APIs;

@@ -4,7 +4,8 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import config from "../utils/config";
 import { validateEmail } from "../utils/helpers";
-import VendorModel from "../models/vendor.model";
+import CourierModel from "../models/courier.model";
+import { sendMail } from "../utils";
 
 type SignupBodyType = { email: any; password: any; name: any };
 
@@ -43,12 +44,12 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
 
   const hashPassword = await bcrypt.hash(body?.password, config.SALT_ROUND!);
 
-  const vendors = await VendorModel.find({});
+  const vendors = await CourierModel.find({});
   const vendorsId = vendors.reduce((acc: any, cv: any) => {
     return acc.concat(cv._id);
   }, []);
 
-  const user = new SellerModel({ name: body?.name, email: body?.email, password: hashPassword, vendors: vendorsId });
+  const user = new SellerModel({ name: body?.name, email: body?.email, password: hashPassword, vendors: vendorsId, allowedVendor: "SS"});
 
   let savedUser;
   try {
@@ -110,6 +111,88 @@ export const login = async (req: Request, res: Response) => {
       id: existingUser._id,
       isVerified: false,
       token,
+      vendor: existingUser.allowedVendor,
     },
   });
 };
+
+type ForgotPassBodyType = {
+  email: string;
+  domain: string;
+};
+
+export const forgotPassword = async (req: Request, res: Response) => {
+  const body: ForgotPassBodyType = req.body;
+
+  if (!body?.email) {
+    return res.status(200).send({
+      valid: false,
+      message: "Invalid login credentials",
+    });
+  }
+
+  const existingUser = await SellerModel.findOne({ email: body.email }).lean();
+  if (!existingUser) {
+    return res.status(200).send({
+      valid: false,
+      message: "user not found",
+    });
+  }
+
+  const resetPasswordToken = jwt.sign({ userId: existingUser._id }, config.JWT_SECRET!, { expiresIn: "1h" });
+
+  const resetLink = `${body.domain}/reset-password/password?token=${resetPasswordToken}`;
+
+  const isEmailSend = await sendMail({ user: { email: existingUser.email, name: existingUser.name, forgetPasswordToken: resetLink } });
+
+  return res.status(200).send({
+    valid: true,
+    user: {
+      email: existingUser.email,
+      isEmailSend,
+    },
+  });
+};
+
+type ResetPassBodyType = {
+  token: string;
+  password: string;
+};
+
+export const resetPassword = async (req: Request, res: Response) => {
+  const { token, password } = req.body as ResetPassBodyType;
+
+  if (!token || !password) {
+    return res.status(200).send({
+      valid: false,
+      message: "Invalid token or password",
+    });
+  }
+
+  let decodedToken: { userId: string };
+  try {
+    decodedToken = jwt.verify(token, config.JWT_SECRET!) as { userId: string };
+  } catch (err) {
+    return res.status(200).send({
+      valid: false,
+      message: "Invalid token",
+    });
+  }
+
+  const existingUser = await SellerModel.findOne({ _id: decodedToken.userId }).lean();
+  if (!existingUser) {
+    return res.status(200).send({
+      valid: false,
+      message: "User doesn't exist",
+    });
+  }
+
+  const hashPassword = await bcrypt.hash(password, config.SALT_ROUND!);
+
+  await SellerModel.updateOne({ _id: decodedToken.userId }, { password: hashPassword });
+
+  return res.status(200).send({
+    valid: true,
+    message: "password reset successfully",
+  });
+}

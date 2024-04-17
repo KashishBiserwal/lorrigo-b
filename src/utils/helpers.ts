@@ -2,16 +2,16 @@ import axios from "axios";
 import config from "./config";
 import EnvModel from "../models/env.model";
 import type { NextFunction, Request, Response } from "express";
-import VendorModel from "../models/vendor.model";
+import CourierModel from "../models/courier.model";
 import PincodeModel from "../models/pincode.model";
 import SellerModel from "../models/seller.model";
 import { ExtendedRequest } from "./middleware";
 import APIs from "./constants/third_party_apis";
 import Logger from "./logger";
 import https from "node:https";
-import redis from "../models/redis";
 import { isValidObjectId } from "mongoose";
 import CustomPricingModel from "../models/custom_pricing.model";
+import envConfig from "./config";
 
 export const validateEmail = (email: string): boolean => {
   return /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)*[a-zA-Z]{2,}))$/.test(
@@ -65,12 +65,12 @@ export const validateSmartShipServicablity = async (
 };
 
 export const addVendors = async (req: Request, res: Response, next: NextFunction) => {
-  const vendor = new VendorModel(req.body);
+  const vendor = new CourierModel(req.body);
   let savedVendor;
   try {
     savedVendor = await vendor.save();
   } catch (err) {
-    console.log(err);
+    // console.log(err);
     return next(err);
   }
   return res.status(200).send({
@@ -89,7 +89,7 @@ export const updateVendor4Seller = async (req: Request, res: Response, next: Nex
     return res.status(200).send({ valid: false, message: "Invalid vendorId or sellerId." });
   }
   try {
-    const vendor = await VendorModel.findById(vendorId);
+    const vendor = await CourierModel.findById(vendorId);
     if (!vendor) return res.status(200).send({ valid: false, message: "Vendor not found" });
     delete body?.vendorId;
     delete body?.sellerId;
@@ -188,6 +188,7 @@ export const ratecalculatorController = async (req: ExtendedRequest, res: Respon
 };
 
 export const rateCalculation = async (
+  shiprocketOrderID: string,
   pickupPincode: any,
   deliveryPincode: any,
   weight: any,
@@ -198,7 +199,8 @@ export const rateCalculation = async (
   sizeUnit: any,
   paymentType: 0 | 1,
   seller_id: any,
-  collectableAmount?: any
+  collectableAmount?: any,
+  vendorType: string = "SS"
 ) => {
   const numPaymentType = Number(paymentType);
   if (!(numPaymentType === 0 || numPaymentType === 1)) throw new Error("Invalid paymentType");
@@ -223,18 +225,54 @@ export const rateCalculation = async (
 
   if (!pickupDetails || !deliveryDetails) throw new Error("invalid pickup or delivery pincode");
 
-  const vendors = await VendorModel.find({});
+  const vendors = await CourierModel.find({ vendorNickName: vendorType });
+
+  let commonCouriers_Shiprocket_us: any[] = [];
+
+  if (vendorType === "SR") {
+
+    const token = await getShiprocketToken();
+    if (!token) return [{ message: "Invalid Shiprocket token" }];
+
+    const url = envConfig.SHIPROCKET_API_BASEURL + APIs.SHIPROCKET_ORDER_COURIER + `/?pickup_postcode=${pickupPincode}&delivery_postcode=${deliveryPincode}&weight=${weight}&cod=0&order_id=${shiprocketOrderID}`;
+
+    const config = {
+      headers: {
+        Authorization: token,
+      },
+    };
+
+    const response = await axios.get(url, config);
+    const courierCompanies = response.data.data.available_courier_companies;
+
+    vendors.forEach((vendor: any) => {
+      const courier = courierCompanies.find((company: { courier_company_id: any; }) => company.courier_company_id === vendor.carrierID);
+      if (courier) {
+        commonCouriers_Shiprocket_us.push(vendor);
+      }
+    });
+  }
+
+
   const data2send: {
     name: string;
     minWeight: number;
     charge: number;
     type: string;
     expectedPickup: string;
-    smartship_carrier_id: number;
+    carrierID: number;
+    order_zone: string;
+
   }[] = [];
-  for (let i = 0; i < vendors.length; i++) {
+  
+  const loopLength = vendorType === "SR" ? commonCouriers_Shiprocket_us.length : vendors.length;
+
+
+  for (let i = 0; i < loopLength; i++) {
     let orderWeight = volumetricWeight > Number(weight) ? volumetricWeight : Number(weight);
-    const cv = vendors[i];
+    const cv = vendorType === "SR" ? commonCouriers_Shiprocket_us[i] : vendors[i];
+
+    let order_zone = "";
     let increment_price = null;
     const userSpecificUpdatedVendorDetails = await CustomPricingModel.find({
       vendorId: cv._id,
@@ -249,23 +287,29 @@ export const rateCalculation = async (
     }
     if (pickupDetails.District === deliveryDetails.District) {
       increment_price = cv.withinCity;
+      order_zone = "Zone A";
     } else if (pickupDetails.StateName === deliveryDetails.StateName) {
       // same state
       increment_price = cv.withinZone;
+      order_zone = "Zone B";
     } else if (
       MetroCitys.find((city) => city === pickupDetails?.District) &&
       MetroCitys.find((city) => city === deliveryDetails?.District)
     ) {
       // metro citys
       increment_price = cv.withinMetro;
+      order_zone = "Zone C";
     } else if (
       NorthEastStates.find((state) => state === pickupDetails?.StateName) &&
       NorthEastStates.find((state) => state === deliveryDetails?.StateName)
     ) {
       // north east
       increment_price = cv.northEast;
+      order_zone = "Zone E";
     } else {
       increment_price = cv.withinRoi;
+      // console.log("roi", cv.withinRoi), increment_price
+      order_zone = "Zone D";
     }
     if (!increment_price) {
       return [{ message: "invalid incrementPrice" }];
@@ -296,7 +340,8 @@ export const rateCalculation = async (
     if (paymentType === 1) {
       cod = codPrice > codAfterPercent ? codPrice : codAfterPercent;
     }
-    const weightIncrementRatio = orderWeight / cv.incrementWeight;
+    const weightIncrementRatio = Math.ceil(orderWeight / cv.incrementWeight);
+    // console.log("weightIncrementRatio", weightIncrementRatio)
     totalCharge += increment_price.incrementPrice * weightIncrementRatio + cod;
 
     data2send.push({
@@ -305,11 +350,44 @@ export const rateCalculation = async (
       charge: totalCharge,
       type: cv.type,
       expectedPickup,
-      smartship_carrier_id: cv.smartship_carrier_id,
+      carrierID: cv.carrierID,
+      order_zone,
     });
   }
   return data2send;
 };
+
+// Define types for pickup and delivery details
+interface PincodePincode {
+  District: string;
+  StateName: string;
+}
+
+// Function to calculate the zone based on pickup and delivery pin codes
+export const calculateZone = async (pickupPincode: PincodePincode, deliveryPincode: PincodePincode) => {
+  const pickupDetails = await getPincodeDetails(Number(pickupPincode));
+  const deliveryDetails = await getPincodeDetails(Number(deliveryPincode));
+  if (!pickupDetails || !deliveryDetails) throw new Error("Invalid pickup or delivery pincode");
+
+  if (pickupDetails.District === deliveryDetails.District) {
+    return "Zone A";
+  } else if (pickupDetails.StateName === deliveryDetails.StateName) {
+    return "Zone B";
+  } else if (
+    MetroCitys.find((city) => city === pickupDetails?.District) &&
+    MetroCitys.find((city) => city === deliveryDetails?.District)
+  ) {
+    return "Zone C";
+  } else if (
+    NorthEastStates.find((state) => state === pickupDetails?.StateName) &&
+    NorthEastStates.find((state) => state === deliveryDetails?.StateName)
+  ) {
+    return "Zone E";
+  } else {
+    return "Zone D";
+  }
+};
+
 
 // condition timing should be in the format: "hour:minute:second"
 export const getNextDateWithDesiredTiming = (timing: string): Date => {
@@ -360,10 +438,6 @@ export const MetroCitys = [
 export const NorthEastStates = ["Sikkim", "Mizoram", "Manipur", "Assam", "Megalaya", "Nagaland", "Tripura"];
 
 export async function getSmartShipToken(): Promise<string | false> {
-  // const token = await redis.get("token:smartship");
-  // if (token) {
-  //   return token;
-  // } else {
   const env = await EnvModel.findOne({ name: "SMARTSHIP" }).lean();
   if (!env) return false;
   //@ts-ignore
@@ -372,16 +446,25 @@ export async function getSmartShipToken(): Promise<string | false> {
   // }
 }
 export async function getSMARTRToken(): Promise<string | false> {
-  // const tok = await redis.get("token:smartr");
-  // if (tok) {
-  //   return tok;
-  // } else {
   const env = await EnvModel.findOne({ name: "SMARTR" }).lean();
   if (!env) return false;
   //@ts-ignore
   const token = env?.data?.token_type + " " + env?.data?.access_token;
   return token;
   // }
+}
+
+export async function getShiprocketToken(): Promise<string | false> {
+  try {
+    const env = await EnvModel.findOne({ name: "SHIPROCKET" }).lean();
+    if (!env) return false;
+    //@ts-ignore
+    const token = "Bearer" + " " + env?.token;
+    return token;
+  } catch (error) {
+    return false;
+  }
+
 }
 
 export function getStatusCode(description: string): number {
@@ -430,6 +513,30 @@ export function getStatusCode(description: string): number {
   return -1;
 }
 
+export function getActionFromStatusCode(statusCode: number, defaultAction: string): string {
+  switch (statusCode) {
+    case 10:
+      return "Shipped";
+    case 18:
+      return "RTO initiated";
+    case 19:
+      return "RTO delivered";
+    case 28:
+    case 118:
+      return "RTO in transit";
+    case 198:
+      return "RTO rejected";
+    case 199:
+    case 201:
+      return "RTO delivered";
+    case 212:
+      return "RTO damaged";
+    default:
+      return defaultAction !== undefined ? defaultAction : ""; // Return default action if provided, else return empty string
+  }
+}
+
+
 export async function isSmartr_surface_servicable(pincode: number): Promise<boolean> {
   /*
   let config = {
@@ -448,10 +555,10 @@ export async function isSmartr_surface_servicable(pincode: number): Promise<bool
   axios
     .request(config)
     .then((response) => {
-      console.log(JSON.stringify(response.data));
+      // console.log(JSON.stringify(response.data));
     })
     .catch((error) => {
-      console.log(error);
+      // console.log(error);
     });
   */
   // /*
@@ -459,8 +566,8 @@ export async function isSmartr_surface_servicable(pincode: number): Promise<bool
   const token = await getSMARTRToken();
   if (!token) return false;
   try {
-    console.log(APIs.PIN_CODE + "?pincode=122008");
-    console.log(token);
+    // console.log(APIs.PIN_CODE + "?pincode=122008");
+    // console.log(token);
     response = await axios.get(APIs.PIN_CODE + `?pincode=${pincode}`, {
       httpsAgent: new https.Agent({ rejectUnauthorized: false }),
       headers: {
@@ -469,10 +576,10 @@ export async function isSmartr_surface_servicable(pincode: number): Promise<bool
     });
   } catch (err: unknown) {
     if (err instanceof Error) {
-      console.log(err.message);
+      // console.log(err.message);
       return false;
     } else {
-      console.log(err);
+      // console.log(err);
       return false;
     }
   }

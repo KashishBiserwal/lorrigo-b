@@ -39,6 +39,9 @@ import mongoose from "mongoose";
 
 const B2COrderSchema = new mongoose.Schema({
   awb: { type: String },
+  shiprocket_order_id: { type: String , required: false },
+  shiprocket_shipment_id: { type: String, required: false  },
+
   sellerId: { type: mongoose.Schema.Types.ObjectId, ref: "Seller", required: true },
   orderStage: { type: Number, required: true }, // 0 -> not shipped, 1 -> shipped, 2 -> Cancelation Request, 3->Canceled
   orderStages: [
@@ -48,8 +51,10 @@ const B2COrderSchema = new mongoose.Schema({
       stageDateTime: { type: Date, required: true },
     },
   ],
+  carrierName: { type: String, required: false },
   pickupAddress: { type: mongoose.Schema.Types.ObjectId, ref: "Hub" },
   productId: { type: mongoose.Schema.Types.ObjectId, ref: "Products", required: true },
+  client_order_reference_id: { type: String, required: false },
 
   order_reference_id: { type: String, required: true },
   payment_mode: { type: Number, required: true }, // 0 -> prepaid, 1 -> COD
@@ -83,123 +88,23 @@ const B2COrderSchema = new mongoose.Schema({
 
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
+  sellerDetails: {
+    type: mongoose.Schema.Types.Map,
+    sellerName: { type: String, required: true },
+    sellerGSTIN: { type: String, required: false },
+    isSellerAddressAdded: { type: Boolean, required: false },
+    sellerAddress: { type: String, required: false },
+    sellerCity: { type: String, required: false },
+    sellerState: { type: String, required: false },
+    sellerPincode: { type: Number, required: false },
+    sellerPhone: { type: Number, required: false },
+  },
 
   /*
     product -> shipmentValue, taxrates
   */
 });
 
-// const OrderSchema = new mongoose.Schema({
-//   //  request info
-//   ip_address: {
-//     type: String,
-//     required: true,
-//   },
-//   run_type: {
-//     type: String,
-//     required: true,
-//   },
-//   browser_name: {
-//     type: String,
-//     required: true,
-//   },
-//   location: {
-//     type: String,
-//     required: true,
-//   },
-//   shipment_type: {
-//     type: Number,
-//     required: true,
-//   },
-//   // order info
-//   client_order_refernce_id: {
-//     type: String,
-//     required: true,
-//   },
-//   order_collectable_amount: {
-//     type: String,
-//     required: true,
-//   },
-//   total_order_value: {
-//     type: String,
-//     required: true,
-//   },
-//   payment_type: {
-//     type: String,
-//     required: true,
-//   },
-//   package_order_weight: {
-//     type: String,
-//     required: true,
-//   },
-//   package_order_length: {
-//     type: String,
-//     required: true,
-//   },
-//   package_order_height: {
-//     type: String,
-//     required: true,
-//   },
-//   package_order_width: {
-//     type: String,
-//     required: true,
-//   },
-//   shipper_hub_id: {
-//     type: String,
-//     required: true,
-//   },
-//   shipper_gst_no: {
-//     type: String,
-//     required: true,
-//   },
-//   order_invoice_date: {
-//     type: String,
-//     required: true,
-//   },
-//   productDetails: [
-//     {
-//       type: mongoose.Schema.ObjectId,
-//       ref: "Products",
-//     },
-//   ],
-// });
-
-/*
-const B2BOrderSchema = new mongoose.Schema({
-  lrNo: { type: String, required: true },
-  isManual: { type: Boolean, required: false },
-  clientName: { type: String, required: true },
-  paymentType: { type: String, required: true },
-  pickupType: { type: String, required: true },
-  insuranceType: { type: String, required: true },
-  pickupLocation: { type: String, required: true },
-  productDescription: { type: String, required: true },
-  totalShipmentWeight: { type: String, required: true },
-  client_reference_order_id: { type: String, required: true, unique: true },
-  quantity: { type: Number, required: true },
-  sizeUnit: { type: String, required: true },
-  dimensionsQuantity: { type: Number, required: true },
-  invoiceType: { type: String, required: true },
-  amount2collect: { type: String, required: true },
-  ewaybill: { type: String, required: true },
-  amount: { type: String, required: true },
-  invoiceNumber: { type: String, required: true },
-  shipperGST: { type: String, required: true },
-  consigneeGST: { type: String, required: true },
-  pickupAddress: { type: String, required: true },
-  customerDetails: {
-    name: { type: String, required: true },
-    email: { type: String, required: true },
-    phone: { type: String, required: true },
-    address: { type: String, required: true },
-    city: { type: String, required: false },
-    state: { type: String, required: false },
-    pincode: { type: String, required: true },
-    type: mongoose.Schema.Types.Mixed,
-    required: true,
-  },
-});
-*/
 export const packageDetailsSchema = new mongoose.Schema({
   boxLength: { type: Number, required: true },
   boxHeight: { type: Number, required: true },
