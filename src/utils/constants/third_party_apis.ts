@@ -42,6 +42,7 @@ const SHIPROCKET_ORDER_COURIER = "/v1/external/courier/serviceability";
 const CANCEL_SHIPMENT_SHIPROCKET = "/v1/external/orders/cancel/shipment/awbs";
 const GET_MANIFEST_SHIPROCKET = "/v1/external/courier/generate/pickup"
 const SHIPROCKET_ORDER_TRACKING = "/v1/external/courier/track/awb";
+const SHIPROCKET_ORDER_NDR = "/v1/external/ndr";
 
 const APIs = {
   HUB_REGISTRATION,
@@ -73,6 +74,7 @@ const APIs = {
   SHIPROCKET_ORDER_COURIER,
   CANCEL_SHIPMENT_SHIPROCKET,
   GET_MANIFEST_SHIPROCKET,
-  SHIPROCKET_ORDER_TRACKING
+  SHIPROCKET_ORDER_TRACKING,
+  SHIPROCKET_ORDER_NDR
 };
 export default APIs;

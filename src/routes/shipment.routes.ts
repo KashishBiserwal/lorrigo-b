@@ -7,7 +7,8 @@ import {
   createShipment,
   trackShipment,
   getShipemntDetails,
-  orderManifest
+  orderManifest,
+  orderReattempt
 } from "../controllers/shipment.controller";
 
 const shipmentRouter = Router();
@@ -25,7 +26,7 @@ shipmentRouter.get("/track", trackShipment);
 shipmentRouter.post("/manifest", orderManifest);
 
 //@ts-ignore
-shipmentRouter.post("/order-reattempt", orderManifest);
+shipmentRouter.post("/order-reattempt", orderReattempt);
 
 //@ts-ignore
 shipmentRouter.post("/b2b", createB2BShipment);

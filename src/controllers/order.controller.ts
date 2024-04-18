@@ -678,10 +678,9 @@ export const createB2BOrder = async (req: ExtendedRequest, res: Response, next: 
 };
 
 export const getCourier = async (req: ExtendedRequest, res: Response, next: NextFunction) => {
-  const seller = req.seller;
   const productId = req.params.id;
   const type = req.params.type;
-  const vendorType = req.params.vendorType;
+  const vendorType = req.seller.allowedVendor;
   let data2send: any;
   let orderDetails: any;
   if (type === "b2c") {
