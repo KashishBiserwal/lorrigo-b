@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { deleteSeller, getSeller, updateSeller } from "../controllers/seller.controller";
+import { deleteSeller, getSeller, updateSeller, getRemittaces, getRemittaceByID } from "../controllers/seller.controller";
 
 const sellerRouter = Router();
 
@@ -11,5 +11,11 @@ sellerRouter.get("/", getSeller);
 
 //@ts-ignore
 sellerRouter.delete("/", deleteSeller);
+
+//@ts-ignore
+sellerRouter.get("/remittance", getRemittaces);
+
+//@ts-ignore
+sellerRouter.get("/remittance/:id", getRemittaceByID);
 
 export default sellerRouter;

@@ -1,6 +1,9 @@
 import { NextFunction, Response } from "express";
 import { ExtendedRequest } from "../utils/middleware";
 import SellerModel from "../models/seller.model";
+import { generateRemittanceId } from "../utils";
+import { B2COrderModel } from "../models/order.model";
+import RemittanceModel from "../models/remittance-modal";
 
 export const getSeller = async (req: ExtendedRequest, res: Response, next: NextFunction) => {
   const seller = await req.seller;
@@ -49,3 +52,31 @@ export const deleteSeller = async (req: ExtendedRequest, res: Response, next: Ne
     message: "incomplete route",
   });
 };
+
+export const getRemittaces = async (req: ExtendedRequest, res: Response, next: NextFunction) => {
+  try {
+    const remittanceOrders = await RemittanceModel.find({ sellerId: req.seller._id });
+    if (!remittanceOrders) return res.status(200).send({ valid: false, message: "No Remittance found" });
+
+    return res.status(200).send({
+      valid: true,
+      remittanceOrders,
+    });
+  } catch (error) {
+    return next(error)
+  }
+}
+
+export const getRemittaceByID = async (req: ExtendedRequest, res: Response, next: NextFunction) => {
+  try {
+    const remittanceOrder = await RemittanceModel.findById(req.params.id);
+    if (!remittanceOrder) return res.status(200).send({ valid: false, message: "No Remittance found" });
+
+    return res.status(200).send({
+      valid: true,
+      remittanceOrder,
+    });
+  } catch (error) {
+    return next(error)
+  }
+}

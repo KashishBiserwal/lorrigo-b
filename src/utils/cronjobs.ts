@@ -9,6 +9,9 @@ import https from "node:https";
 import Logger from "./logger";
 import { trackShipment } from "../controllers/shipment.controller";
 import { RequiredTrackResponse, TrackResponse } from "../types/b2c";
+import { generateRemittanceId, getFridayDate } from ".";
+import RemittanceModel from "../models/remittance-modal";
+import SellerModel from "../models/seller.model";
 
 /**
  * Update order with statusCode (2) to cancelled order(3)
@@ -228,10 +231,8 @@ export const trackOrder_Smartship = async () => {
 export const trackOrder_Shiprocket = async () => {
   const orders = await B2COrderModel.find({
     orderStage: { $gt: 1 },
-    shiprocket_order_id: { $exists: true}
-});
-console.log(orders.length, "orders found")
-  // console.log(orders.length, "orders found")
+    shiprocket_order_id: { $exists: true }
+  });
 
   for (const orderWithOrderReferenceId of orders) {
     console.log("SR_response");
@@ -242,7 +243,7 @@ console.log(orders.length, "orders found")
         console.log("FAILED TO RUN JOB, SHIPROCKET TOKEN NOT FOUND");
         return;
       }
-      
+
       const apiUrl = `${config.SHIPROCKET_API_BASEURL}${APIs.SHIPROCKET_ORDER_TRACKING}/${orderWithOrderReferenceId.awb}`;
       const response = await axios.get(apiUrl, {
         headers: {
@@ -250,9 +251,7 @@ console.log(orders.length, "orders found")
         }
       });
 
-
-      console.log(response.data.tracking_data.shipment_status, "SR_response");
-      if(response.data.tracking_data.shipment_status){
+      if (response.data.tracking_data.shipment_status) {
         const statusCode = getStatusCode(response.data.tracking_data.shipment_status);
         const action = getActionFromStatusCode(statusCode, response.data.tracking_data.shipment_status);
         console.log("statusCode: ", statusCode, action)
@@ -287,22 +286,67 @@ console.log(orders.length, "orders found")
 
     } catch (err) {
       console.log(err, "SR_error");
-      
+
       Logger.err(err);
     }
   }
 };
 
+export const calculateRemittance = async () => {
+  try {
+    const companyName = 'L';
+    const currentDate = new Date();
+    const fridayDate = getFridayDate(currentDate); // Function to get the Friday date of the current week
+    const sellerIds = await SellerModel.find({}).select("_id");
+
+    for (const sellerId of sellerIds) {
+      const existingRemittance = await RemittanceModel.findOne({ sellerId: sellerId, remittanceDate: fridayDate });
+      if (existingRemittance) {
+        console.log(`Remittance already exists for seller: ${sellerId} on ${fridayDate}`);
+        continue; // Skip adding remittance for this seller on this Friday
+      }
+
+      const remittanceId = generateRemittanceId(companyName, sellerId._id.toString(), fridayDate);
+      const remittanceDate = fridayDate;
+      let remittanceAmount = 0;
+      const remittanceStatus = 'pending';
+      const orders = await B2COrderModel.find({ sellerId: sellerId, orderStage: 4, payment_mode: 1 }).populate("productId");
+      const BankTransactionId = '1234567890';
+      if (orders.length > 0) {
+        orders.forEach(order => {
+          // @ts-ignore
+          remittanceAmount += Number(order.amount2Collect);
+        });
+        const remittance = new RemittanceModel({
+          sellerId: sellerId,
+          remittanceId: remittanceId,
+          remittanceDate: remittanceDate,
+          remittanceAmount: remittanceAmount,
+          remittanceStatus: remittanceStatus,
+          orders: orders,
+          BankTransactionId: BankTransactionId
+        });
+        await remittance.save();
+      }
+    }
+  } catch (error) {
+    console.log(error, "{error} in calculateRemittance");
+  }
+}
+
 
 export default async function runCron() {
   const expression4every2Minutes = "*/2 * * * *";
   if (cron.validate(expression4every2Minutes)) {
-    cron.schedule(expression4every2Minutes, trackOrder_Smartship);
-    cron.schedule(expression4every2Minutes, trackOrder_Shiprocket);
+    // cron.schedule(expression4every2Minutes, trackOrder_Smartship);
+    // cron.schedule(expression4every2Minutes, trackOrder_Shiprocket);
 
     const expression4every5Minute = "5 * * * *";
     const expression4every59Minute = "59 * * * *";
     const expression4every9_59Hr = "59 9 * * * ";
+    const expression4everyFriday = "0 0 * * 5";
+
+    // cron.schedule(expression4every2Minutes, calculateRemittance);
     cron.schedule(expression4every59Minute, CONNECT_SHIPROCKET);
     cron.schedule(expression4every59Minute, CONNECT_SMARTSHIP);
     cron.schedule(expression4every5Minute, CANCEL_REQUESTED_ORDER);

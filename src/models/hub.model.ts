@@ -10,7 +10,8 @@ const HubSchema = new mongoose.Schema({
   state: { type: String, required: true },
   address1: { type: String, required: true },
   address2: { type: String, required: false },
-  phone: { type: Number, required: true },
+  contactPersonName: { type: String, required: true },
+  phone: { type: String, required: true },
   delivery_type_id: { type: Number, required: false },
 
   isSuccess: { type: Boolean, required: false },

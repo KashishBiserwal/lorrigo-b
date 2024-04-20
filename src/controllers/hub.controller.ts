@@ -22,7 +22,7 @@ export const createHub = async (req: ExtendedRequest, res: Response, next: NextF
     });
   }
 
-  let { name, pincode, address1, address2, phone } = req.body;
+  let { name, pincode, address1, address2, phone, contactPersonName } = req.body;
   pincode = Number(pincode);
   phone = Number(phone);
 
@@ -129,6 +129,7 @@ export const createHub = async (req: ExtendedRequest, res: Response, next: NextF
   try {
     const toSaveHub = new HubModel({
       sellerId: req.seller._id,
+      contactPersonName,
       name,
       city,
       pincode,

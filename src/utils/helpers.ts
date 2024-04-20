@@ -469,12 +469,12 @@ export async function getShiprocketToken(): Promise<string | false> {
 
 export function getStatusCode(description: string): number {
   const statusMap: { [key: string]: number | number[] } = {
-    Open: 0,
-    Confirmed: 2,
+    "Open": 0,
+    "Confirmed": 2,
     "Shipping Label Generated": 3,
-    Manifested: 4,
-    Shipped: 10,
-    Delivered: 11,
+    "Manifested": 4,
+    "Shipped": 10,
+    "Delivered": 11,
     "Delivery Attempted-Out Of Delivery Area": 12,
     "Delivery Attempted-Address Issue / Wrong Address": 13,
     "Delivery Attempted-COD Not ready": 14,
