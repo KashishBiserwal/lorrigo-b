@@ -75,24 +75,17 @@ export const CONNECT_SMARTSHIP = () => {
     .then((r) => {
       Logger.log("SmartShip API response: " + JSON.stringify(r.data));
       const responseBody = r.data;
-      const savedEnv = new EnvModel({ name: "SMARTSHIP", ...responseBody });
-      EnvModel.deleteMany({ name: "SMARTSHIP" })
+      EnvModel.findOneAndUpdate(
+        { name: "SMARTSHIP" },
+        { $set: { nickName: "SS", token: responseBody.access_token } },
+        { upsert: true, new: true }
+      )
         .then(() => {
-          //@ts-ignore
-          const token = `${savedEnv?.token_type} ${savedEnv?.access_token}`;
-          // console.log("token: ", token);
-          savedEnv
-            .save()
-            .then((r) => {
-              Logger.plog("SMARTSHIP ENVs, updated successfully");
-            })
-            .catch((err) => {
-              Logger.log("Error: while adding environment variable to ENV Document");
-              Logger.log(err);
-            });
+          const token = `${responseBody.token_type} ${responseBody.access_token}`;
+          Logger.plog("SMARTSHIP environment updated successfully");
         })
         .catch((err) => {
-          Logger.log("Failed to clean up environment variables Document");
+          Logger.log("Error updating SMARTSHIP environment:");
           Logger.log(err);
         });
     })
@@ -106,35 +99,24 @@ export const CONNECT_SHIPROCKET = async (): Promise<void> => {
     email: config.SHIPROCKET_USERNAME,
     password: config.SHIPROCKET_PASSWORD,
   };
-  axios
-    .post("https://apiv2.shiprocket.in/v1/external/auth/login", requestBody)
-    .then((r) => {
-      const responseBody = r.data;
-      const savedEnv = new EnvModel({ name: "SHIPROCKET", ...responseBody });
-      EnvModel.deleteMany({ name: "SHIPROCKET" })
-        .then(() => {
-          //@ts-ignore
-          const token = `Bearer ${savedEnv?.token}`;
-          console.log("Shiprocket token: ", token);
-          savedEnv
-            .save()
-            .then((r) => {
-              Logger.plog("Shiprocket ENVs, updated successfully");
-            })
-            .catch((err) => {
-              Logger.log("Error: while adding environment variable to ENV Document");
-              Logger.log(err);
-            });
-        })
-        .catch((err) => {
-          Logger.log("Failed to clean up environment variables Document");
-          Logger.log(err);
-        });
-    })
-    .catch((err) => {
-      console.log(err)
-      Logger.err("Error, shiprocket:" + JSON.stringify(err?.response?.data));
-    });
+  try {
+    const response = await axios.post("https://apiv2.shiprocket.in/v1/external/auth/login", requestBody);
+    const responseBody = response.data;
+
+    // Update existing document or create a new one
+    await EnvModel.findOneAndUpdate(
+      { name: "SHIPROCKET" },
+      { $set: { nickName: "SR", token: responseBody.token  } },
+      { upsert: true, new: true }
+    );
+
+    const token = `Bearer ${responseBody.token}`;
+    console.log("Shiprocket token: ", token);
+    Logger.plog("Shiprocket environment updated successfully");
+  } catch (err) {
+    console.log(err);
+    Logger.err("Error connecting to Shiprocket API: ");
+  }
 };
 
 /**
@@ -142,7 +124,7 @@ export const CONNECT_SHIPROCKET = async (): Promise<void> => {
  * @return void
  */
 export const CONNECT_SMARTR = async (): Promise<void> => {
-  let requestBody = {
+  const requestBody = {
     username: config.SMARTR_USERNAME,
     password: config.SMARTR_PASSWORD,
   };
@@ -154,15 +136,17 @@ export const CONNECT_SMARTR = async (): Promise<void> => {
       }),
     });
     const responseJSON = response.data;
+
     if (responseJSON.success === true && responseJSON.message === "Logged In!") {
-      const deleteENV = await EnvModel.deleteOne({ name: "SMARTR" }).lean();
-      // if (deleteENV.deletedCount) {
-      const env = new EnvModel({ name: "SMARTR", ...responseJSON });
-      //@ts-ignore
-      const token = env?.data?.token_type + " " + env?.data?.access_token;
-      const savedEnv = await env.save();
-      Logger.plog("SMARTR LOGGEDIN: " + JSON.stringify(savedEnv));
-      // }
+      // Update existing document or create a new one
+      await EnvModel.findOneAndUpdate(
+        { name: "SMARTR" },
+        { $set: { nickName: "SMR" , token: responseJSON.data.access_token} },
+        { upsert: true, new: true }
+      );
+
+      const token = `${responseJSON.token_type} ${responseJSON.access_token}`;
+      Logger.plog("SMARTR LOGGEDIN: " + JSON.stringify(responseJSON));
     } else {
       Logger.log("ERROR, smartr: " + JSON.stringify(responseJSON));
     }
@@ -171,6 +155,7 @@ export const CONNECT_SMARTR = async (): Promise<void> => {
     Logger.err(err);
   }
 };
+
 /**
  * function to run CronJobs currrently one cron is scheduled to update the status of order which are cancelled to "Already Cancelled".
  * @emits CANCEL_REQUESTED_ORDER

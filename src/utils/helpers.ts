@@ -12,6 +12,7 @@ import https from "node:https";
 import { isValidObjectId } from "mongoose";
 import CustomPricingModel from "../models/custom_pricing.model";
 import envConfig from "./config";
+import { Types } from "mongoose";
 
 export const validateEmail = (email: string): boolean => {
   return /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)*[a-zA-Z]{2,}))$/.test(
@@ -55,7 +56,6 @@ export const validateSmartShipServicablity = async (
       smartshipAPIconfig
     );
     const responseData = response.data;
-    Logger.log(responseData);
     return responseData.data.serviceability_status;
   } catch (err) {
     return false;
@@ -148,6 +148,7 @@ export const isValidPayload = (body: any, field: string[]): boolean => {
 export const ratecalculatorController = async (req: ExtendedRequest, res: Response, next: NextFunction) => {
   const body = req.body;
   const seller = req.seller;
+  const users_vendors = seller?.vendors || [];
   if (
     !isValidPayload(body, [
       "pickupPincode",
@@ -179,11 +180,21 @@ export const ratecalculatorController = async (req: ExtendedRequest, res: Respon
       body.sizeUnit,
       body.paymentType,
       seller._id,
-      body?.collectableAmount
+      body?.collectableAmount,
+      users_vendors
     );
     return res.status(200).send({ valid: true, rates: data2send });
   } catch (err) {
     return next(err);
+  }
+};
+
+const convertToObjectId = (id: string) => {
+  try {
+    return new Types.ObjectId(id);
+  } catch (error) {
+    console.error(`Invalid ObjectId: ${id}`);
+    return null;
   }
 };
 
@@ -198,9 +209,10 @@ export const rateCalculation = async (
   boxHeight: any,
   sizeUnit: any,
   paymentType: 0 | 1,
+  users_vendors: string[],
   seller_id: any,
   collectableAmount?: any,
-  vendorType: string = "SS"
+  hubId?: number,
 ) => {
   const numPaymentType = Number(paymentType);
   if (!(numPaymentType === 0 || numPaymentType === 1)) throw new Error("Invalid paymentType");
@@ -225,12 +237,23 @@ export const rateCalculation = async (
 
   if (!pickupDetails || !deliveryDetails) throw new Error("invalid pickup or delivery pincode");
 
-  const vendors = await CourierModel.find({ vendorNickName: vendorType });
 
-  let commonCouriers_Shiprocket_us: any[] = [];
 
-  if (vendorType === "SR") {
+  // Convert vendor IDs to ObjectId format
+  const vendorIds = users_vendors.map(convertToObjectId).filter(id => id !== null);
 
+  // Check if any IDs failed to convert
+  if (vendorIds.length !== users_vendors.length) {
+    console.error('Some vendor IDs could not be converted.');
+  }
+
+  const vendors = await CourierModel.find({
+    _id: { $in: vendorIds }
+  });
+
+  let commonCouriers: any[] = [];
+
+  try {
     const token = await getShiprocketToken();
     if (!token) return [{ message: "Invalid Shiprocket token" }];
 
@@ -243,16 +266,63 @@ export const rateCalculation = async (
     };
 
     const response = await axios.get(url, config);
-    const courierCompanies = response.data.data.available_courier_companies;
+    const courierCompanies = response?.data?.data?.available_courier_companies;
 
+    const shiprocketNiceName = await EnvModel.findOne({ name: "SHIPROCKET" }).select("_id nickName");
     vendors.forEach((vendor: any) => {
-      const courier = courierCompanies.find((company: { courier_company_id: any; }) => company.courier_company_id === vendor.carrierID);
-      if (courier) {
-        commonCouriers_Shiprocket_us.push(vendor);
+      const courier = courierCompanies.find((company: { courier_company_id: number; }) => company.courier_company_id === vendor.carrierID);
+      if (courier && shiprocketNiceName) {
+
+        const shiprocketVendors = vendors.filter((vendor) => {
+          return vendor?.vendor_channel_id?.toString() === shiprocketNiceName._id.toString();
+        });
+
+        if (shiprocketVendors.length > 0) {
+          commonCouriers.push({
+            ...vendor.toObject(),
+            nickName: shiprocketNiceName.nickName
+          });
+        }
       }
     });
+  } catch (error) {
+    console.log("error", error);
   }
 
+
+  try {
+    const isSmartshipServicable = await validateSmartShipServicablity(
+      1,
+      hubId || 1,
+      Number(deliveryPincode),
+      weight,
+      []
+    );
+
+    const smartShipNiceName = await EnvModel.findOne({ name: "SMARTSHIP" }).select("_id nickName");
+    if (smartShipNiceName) {
+      const smartShipVendors = vendors.filter((vendor) => {
+        console.log("vendor", vendor?.vendor_channel_id?.toString() === smartShipNiceName._id.toString());
+        return vendor?.vendor_channel_id?.toString() === smartShipNiceName._id.toString();
+      });
+      if (isSmartshipServicable) {
+        // Add nickname for each vendor in smartShipVendors array
+        const smartShipVendorsWithNickname = smartShipVendors.map((vendor) => {
+          return {
+            ...vendor.toObject(), // Convert vendor to plain JavaScript object
+            nickName: smartShipNiceName.nickName
+          };
+        });
+
+        console.log("smartShipVendorsWithNickname", smartShipVendorsWithNickname);
+        
+
+        commonCouriers.push(...smartShipVendorsWithNickname);
+      }
+    }
+  } catch (error) {
+    console.log("error", error);
+  }
 
   const data2send: {
     name: string;
@@ -262,15 +332,16 @@ export const rateCalculation = async (
     expectedPickup: string;
     carrierID: number;
     order_zone: string;
+    nickName?: string;
 
   }[] = [];
-  
-  const loopLength = vendorType === "SR" ? commonCouriers_Shiprocket_us.length : vendors.length;
+
+  const loopLength = commonCouriers.length;
 
 
   for (let i = 0; i < loopLength; i++) {
     let orderWeight = volumetricWeight > Number(weight) ? volumetricWeight : Number(weight);
-    const cv = vendorType === "SR" ? commonCouriers_Shiprocket_us[i] : vendors[i];
+    const cv = commonCouriers[i];
 
     let order_zone = "";
     let increment_price = null;
@@ -344,7 +415,12 @@ export const rateCalculation = async (
     // console.log("weightIncrementRatio", weightIncrementRatio)
     totalCharge += increment_price.incrementPrice * weightIncrementRatio + cod;
 
+    console.log("totalCharge", cv);
+
+
+
     data2send.push({
+      nickName: cv.nickName,
       name: cv.name,
       minWeight,
       charge: totalCharge,
@@ -354,6 +430,8 @@ export const rateCalculation = async (
       order_zone,
     });
   }
+
+  console.log("data2send", data2send)
   return data2send;
 };
 
@@ -441,7 +519,7 @@ export async function getSmartShipToken(): Promise<string | false> {
   const env = await EnvModel.findOne({ name: "SMARTSHIP" }).lean();
   if (!env) return false;
   //@ts-ignore
-  const smartshipToken = env?.token_type + " " + env?.access_token;
+  const smartshipToken = "Bearer" + " " + env?.token;
   return smartshipToken;
   // }
 }
@@ -449,7 +527,7 @@ export async function getSMARTRToken(): Promise<string | false> {
   const env = await EnvModel.findOne({ name: "SMARTR" }).lean();
   if (!env) return false;
   //@ts-ignore
-  const token = env?.data?.token_type + " " + env?.data?.access_token;
+  const token = "Bearer" + " " + env?.token;
   return token;
   // }
 }
@@ -551,7 +629,7 @@ export async function isSmartr_surface_servicable(pincode: number): Promise<bool
         "csrftoken=1qesTyXbnnTIfNWLe8h8oAizJxVM8xtvTmZZRtoQhEdhH7KcfbywxXL892Qda2l4; sessionid=6rf0mzqk7pqif84y4se21hu9u63balbl",
     },
   };
-
+ 
   axios
     .request(config)
     .then((response) => {

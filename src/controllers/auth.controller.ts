@@ -49,7 +49,7 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
     return acc.concat(cv._id);
   }, []);
 
-  const user = new SellerModel({ name: body?.name, email: body?.email, password: hashPassword, vendors: vendorsId, allowedVendor: "SS"});
+  const user = new SellerModel({ name: body?.name, email: body?.email, password: hashPassword, vendors: vendorsId});
 
   let savedUser;
   try {
@@ -111,7 +111,6 @@ export const login = async (req: Request, res: Response) => {
       id: existingUser._id,
       isVerified: false,
       token,
-      vendor: existingUser.allowedVendor,
     },
   });
 };

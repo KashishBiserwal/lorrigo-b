@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
 
 const currentTime = new Date().getHours() + ":" + new Date().getMinutes() + ":" + new Date().getSeconds();
 
@@ -15,7 +15,7 @@ const codSchema = {
 export const courierSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    vendorNickName: { type: String, required: true },
+    vendor_channel_id: { type: Types.ObjectId, ref: "Env" ,required: true },
     weightSlab: { type: Number, required: true },
     weightUnit: { type: String, required: true },
     codCharge: { type: codSchema, required: true, default: { hard: 40, percent: 1.5 } },

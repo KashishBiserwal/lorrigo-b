@@ -221,10 +221,8 @@ export async function createShipment(req: ExtendedRequest, res: Response, next: 
 // TODO: REMOVE THIS CODE: orderType = 0 ? "b2c" : "b2b"
 export async function createShipment(req: ExtendedRequest, res: Response, next: NextFunction) {
   const body = req.body;
-  const vendorType = req.seller.allowedVendor;
-  console.log(vendorType, "vendorType")
 
-  if (!isValidPayload(body, ["orderId", "orderType", "carrierId"])) {
+  if (!isValidPayload(body, ["orderId", "orderType", "carrierId", "carrierNickName"])) {
     return res.status(200).send({ valid: false, message: "Invalid payload" });
   }
   if (!isValidObjectId(body?.orderId)) return res.status(200).send({ valid: false, message: "Invalid orderId" });
@@ -260,7 +258,9 @@ export async function createShipment(req: ExtendedRequest, res: Response, next: 
     return next(err);
   }
 
-  if (vendorType === "SS") {
+  const vendorName = await EnvModel.findOne({ nickName: body.carrierNickName });
+
+  if (vendorName?.name === "SMARTSHIP") {
     const productValueWithTax =
       Number(productDetails.taxable_value) +
       (Number(productDetails.tax_rate) / 100) * Number(productDetails.taxable_value);
@@ -356,7 +356,7 @@ export async function createShipment(req: ExtendedRequest, res: Response, next: 
       try {
         const savedShipmentResponse = await shipmentResponseToSave.save();
         const awbNumber = externalAPIResponse?.data?.success_order_details?.orders[0]?.awb_number
-        const carrierName = externalAPIResponse?.data?.success_order_details?.orders[0]?.carrier_name
+        const carrierName = externalAPIResponse?.data?.success_order_details?.orders[0]?.carrier_name + " " + vendorName?.nickName;
         order.client_order_reference_id = client_order_reference_id;
         order.orderStage = 1;
         order.orderStages.push({
@@ -374,7 +374,7 @@ export async function createShipment(req: ExtendedRequest, res: Response, next: 
     }
     return res.status(500).send({ valid: false, message: "something went wrong", order, externalAPIResponse });
   }
-  else if (vendorType === "SR") {
+  else if (vendorName?.name === "SHIPROCKET") {
     try {
 
       const shiprocketToken = await getShiprocketToken();
@@ -392,7 +392,7 @@ export async function createShipment(req: ExtendedRequest, res: Response, next: 
         });
 
         order.awb = awbResponse.data.response.data.awb_code;
-        order.carrierName = awbResponse.data.response.data.courier_name;
+        order.carrierName = awbResponse.data.response.data.courier_name + " " + vendorName?.nickName;;
 
         order.orderStage = 1;
         order.orderStages.push({
@@ -418,125 +418,6 @@ export async function createShipment(req: ExtendedRequest, res: Response, next: 
   }
 }
 
-// export async function cancelShipment(req: ExtendedRequest, res: Response, next: NextFunction) {
-//   const body = req.body;
-//   const { orderId, type } = body;
-
-//   if (!(orderId && isValidObjectId(orderId))) {
-//     return res.status(200).send({ valid: false, message: "invalid payload" });
-//   }
-
-//   let order;
-//   try {
-//     order = await B2COrderModel.findOne({ _id: orderId, sellerId: req.seller._id }).lean();
-//   } catch (err) {
-//     return next(err);
-//   }
-
-//   if (!order)
-//     return res.status(200).send({ valid: false, message: `No active shipment found with orderId=${orderId}` });
-
-//   const smartshipToken = await getSmartShipToken();
-//   if (!smartshipToken) return res.status(200).send({ valid: false, message: "SMARTSHIP ENVs not found" });
-
-//   const shipmentAPIConfig = { headers: { Authorization: smartshipToken } };
-
-//   const requestBody = {
-//     request_info: {},
-//     orders: {
-//       client_order_reference_ids: [order._id + "_" + order.order_reference_id],
-//     },
-//   };
-
-//   const externalAPIResponse = await axios.post(
-//     config.SMART_SHIP_API_BASEURL + APIs.CANCEL_SHIPMENT,
-//     requestBody,
-//     shipmentAPIConfig
-//   );
-
-//   if (externalAPIResponse.data.status === "403") {
-//     return res.status(500).send({ valid: false, message: "Smartships Envs expired" });
-//   }
-
-//   const order_cancellation_details = externalAPIResponse.data?.data?.order_cancellation_details;
-
-//   if (order_cancellation_details?.failure) {
-//     // handling failure
-//     const isAlreadyCancelled = new RegExp("Already Cancelled.").test(
-//       externalAPIResponse?.data?.data?.order_cancellation_details?.failure[order?.order_reference_id]?.message
-//     );
-//     const isAlreadyRequested = new RegExp("Cancellation already requested.").test(
-//       externalAPIResponse?.data?.data?.order_cancellation_details?.failure[order?.order_reference_id]?.message
-//     );
-//     if (isAlreadyCancelled) {
-//       try {
-//         const updatedOrder = await B2COrderModel.findByIdAndUpdate(order?._id, {
-//           $push: {
-//             orderStages: {
-//               stage: -1,
-//               action: "Cancelled",
-//               stageDateTime: new Date()
-//             }
-//           },
-//           $set: {
-//             orderStage: -1
-//           }
-//         }, { new: true });
-//         return res.status(200).send({ valid: false, message: "Already Cancelled.", order: updatedOrder });
-//       } catch (err: unknown) {
-//         return next(err);
-//       }
-//     } else if (isAlreadyRequested) {
-//       try {
-//         const updatedOrder = await B2COrderModel.findByIdAndUpdate(order?._id, {
-//           $push: {
-//             orderStages: {
-//               stage: -1,
-//               action: "Cancelled",
-//               stageDateTime: new Date()
-//             }
-//           },
-//           $set: {
-//             orderStage: -1
-//           }
-//         }, { new: true });
-//         return res
-//           .status(200)
-//           .send({ valid: false, message: "Already requested for cancellation.", order: updatedOrder });
-//       } catch (err: unknown) {
-//         return next(err);
-//       }
-//     } else {
-//       return res.status(200).send({ valid: false, message: "Incomplete route section", order_cancellation_details });
-//     }
-//   } else {
-//     // handling success.
-//     try {
-//       const updatedOrder = await B2COrderModel.findByIdAndUpdate(
-//         order?._id,
-//         {
-//           $push: {
-//             orderStages: {
-//               stage: -1,
-//               action: "Cancelled",
-//               stageDateTime: new Date()
-//             }
-//           },
-//           $set: {
-//             orderStage: -1
-//           }
-//         },
-//         { new: true }
-//       );
-//       return res.status(200).send({ valid: true, message: "Order cancelation request Generated", order: updatedOrder });
-//     } catch (err) {
-//       return next(err);
-//     }
-//   }
-//   return res
-//     .status(200)
-//     .send({ valid: false, message: "unhandled section of route", response: externalAPIResponse.data });
-// }
 
 export async function cancelShipment(req: ExtendedRequest, res: Response, next: NextFunction) {
   const { orderId, type } = req.body;
@@ -550,14 +431,17 @@ export async function cancelShipment(req: ExtendedRequest, res: Response, next: 
     return res.status(404).send({ valid: false, message: `No active order found with orderId=${orderId}` });
   }
 
-  if (order.awb === null && type === "order") {
+  if (!order.awb && type === "order") {
     await updateOrderStatus(order._id, -1, "Cancelled");
-    return res.status(400).send({ valid: true, message: "Order cancelled successfully" });
+    return res.status(200).send({ valid: true, message: "Order cancelled successfully" });
   }
 
-  const vendorType = req.seller.allowedVendor;
+  const assignedVendorNickname = order.carrierName ? order.carrierName.split(" ").pop() : null;
 
-  if (vendorType === "SS") {
+  const vendorName = await EnvModel.findOne({ nickName: assignedVendorNickname });
+
+
+  if (vendorName?.name === "SMARTSHIP") {
     const smartshipToken = await getSmartShipToken();
     if (!smartshipToken) {
       return res.status(500).send({ valid: false, message: "Smartship environment variables not found" });
@@ -620,7 +504,7 @@ export async function cancelShipment(req: ExtendedRequest, res: Response, next: 
       return next(error);
     }
   }
-  else if (vendorType === "SR") {
+  else if (vendorName?.name === "SHIPROCKET") {
     try {
       const cancelShipmentPayload = {
         awbs: [order.awb],
@@ -658,7 +542,6 @@ export async function cancelShipment(req: ExtendedRequest, res: Response, next: 
 
 export async function orderManifest(req: ExtendedRequest, res: Response, next: NextFunction) {
   const body = req.body;
-  const vendorType = req.seller.allowedVendor;
   const { orderId, pickupDate } = body;
 
   if (!(orderId && isValidObjectId(orderId))) {
@@ -674,7 +557,13 @@ export async function orderManifest(req: ExtendedRequest, res: Response, next: N
 
   if (!order) return res.status(200).send({ valid: false, message: "Order not found" });
 
-  if (vendorType === "SS") {
+  
+  const assignedVendorNickname = order.carrierName ? order.carrierName.split(" ").pop() : null;
+
+  const vendorName = await EnvModel.findOne({ nickName: assignedVendorNickname });
+
+
+  if (vendorName?.name === "SMARTSHIP") {
     const smartshipToken = await getSmartShipToken();
     if (!smartshipToken) return res.status(200).send({ valid: false, message: "Smartship ENVs not found" });
 
@@ -717,7 +606,7 @@ export async function orderManifest(req: ExtendedRequest, res: Response, next: N
     } catch (error) {
       return next(error);
     }
-  } else if (vendorType === "SR") {
+  } else if (vendorName?.name === "SHIPROCKET") {
     const shiprocketToken = await getShiprocketToken();
 
     const parsedDate = parse(pickupDate, 'yyyy MM dd', new Date());

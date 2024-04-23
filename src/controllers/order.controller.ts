@@ -187,7 +187,6 @@ import APIs from "../utils/constants/third_party_apis";
 
 export const createB2COrder = async (req: ExtendedRequest, res: Response, next: NextFunction) => {
   const body = req.body;
-  const vendorType = req.seller.allowedVendor;
   if (!body) return res.status(200).send({ valid: false, message: "Invalid payload" });
 
   const customerDetails = body?.customerDetails;
@@ -238,96 +237,15 @@ export const createB2COrder = async (req: ExtendedRequest, res: Response, next: 
     return next(err);
   }
 
-  if (vendorType === "SS") {
-    let hubDetails;
-    try {
-      hubDetails = await HubModel.findById(body?.pickupAddress);
-      if (!hubDetails) return res.status(200).send({ valid: false, message: "Pickup address doesn't exists" });
+  let hubDetails;
+  try {
+    hubDetails = await HubModel.findById(body?.pickupAddress);
+    if (!hubDetails) return res.status(200).send({ valid: false, message: "Pickup address doesn't exists" });
 
-      if (!hubDetails.hub_id)
-        return res.status(200).send({ valid: false, message: "Pickup address is not regiestered at smartship" });
-    } catch (err) {
-      return next(err);
-    }
-
-    try {
-      const isServicable = await validateSmartShipServicablity(
-        1,
-        // @ts-ignore
-        hubDetails.hub_id,
-        Number(customerDetails.pincode),
-        0,
-        []
-      );
-      if (!isServicable) return res.status(200).send({ valid: false, message: "Not servicable" });
-    } catch (err) {
-      return next(err);
-    }
+  } catch (err) {
+    return next(err);
   }
 
-
-  let shiprocketOrder;
-  if (vendorType === "SR") {
-    const order = await B2COrderModel.findOne({
-      sellerId: req.seller._id,
-      order_reference_id: body?.order_reference_id,
-    })
-    const hubDetails = await HubModel.findById(body?.pickupAddress);
-    const shiprocketToken = await getShiprocketToken();
-    if (!shiprocketToken) return res.status(200).send({ valid: false, message: "Invalid token" });
-
-    const orderPayload = {
-      "order_id": body?.order_reference_id,
-      "order_date": format(body?.order_invoice_date, 'yyyy-MM-dd HH:mm'),
-      "pickup_location": hubDetails?.name,
-      // "channel_id": "shopify",
-      // "comment": "Reseller: M/s Goku",
-      "billing_customer_name": body?.customerDetails.name,
-      "billing_last_name": body?.customerDetails.name.split(" ")[1] || "",
-      "billing_address": body?.customerDetails.address,
-      "billing_city": hubDetails?.city,
-      "billing_pincode": body?.customerDetails.pincode,
-      "billing_state": hubDetails?.state,
-      "billing_country": "India",
-      "billing_email": body?.customerDetails.email || "noreply@lorrigo.com",
-      "billing_phone": body?.customerDetails.phone,
-      "shipping_is_billing": true,
-      "shipping_customer_name": body?.sellerDetails.sellerName || "",
-      "shipping_last_name": body?.sellerDetails.sellerName.split(" ")[1] || "",
-      "shipping_address": body?.sellerDetails.sellerAddress,
-      "shipping_address_2": "",
-      "shipping_city": body?.sellerDetails.sellerCity,
-      "shipping_pincode": body?.sellerDetails.sellerPincode,
-      "shipping_country": "India",
-      "shipping_state": body?.sellerDetails.sellerState,
-      "shipping_email": "",
-      "shipping_phone": body?.sellerDetails.sellerPhone,
-      "order_items": [
-        {
-          "name": productDetails.name,
-          "sku": productDetails.name,
-          "units": productDetails.quantity,
-          "selling_price": Number(productDetails.taxableValue),
-        }
-      ],
-      "payment_method": body?.payment_mode === 0 ? "Prepaid" : "COD",
-      "sub_total": Number(productDetails?.taxableValue),
-      "length": body?.orderBoxLength,
-      "breadth": body?.orderBoxWidth,
-      "height": body?.orderBoxHeight,
-      "weight": body?.orderWeight,
-    };
-
-    try {
-      shiprocketOrder = await axios.post(envConfig.SHIPROCKET_API_BASEURL + APIs.CREATE_SHIPROCKET_ORDER, orderPayload, {
-        headers: {
-          Authorization: shiprocketToken,
-        },
-      });
-    } catch (error) {
-      console.log("error", error);
-    }
-  }
 
   let savedProduct;
   try {
@@ -349,11 +267,8 @@ export const createB2COrder = async (req: ExtendedRequest, res: Response, next: 
   const orderboxSize = "cm";
 
   let savedOrder;
-
   const data = {
     sellerId: req.seller?._id,
-    shiprocket_order_id: shiprocketOrder?.data.order_id,
-    shiprocket_shipment_id: shiprocketOrder?.data.shipment_id,
     orderStage: 0,
     orderStages: [{ stage: 0, stageDateTime: new Date(), action: "New" }],
     pickupAddress: body?.pickupAddress,
@@ -453,25 +368,10 @@ export const updateB2COrder = async (req: ExtendedRequest, res: Response, next: 
     hubDetails = await HubModel.findById(body?.pickupAddress);
     if (!hubDetails) return res.status(200).send({ valid: false, message: "Pickup address doesn't exists" });
 
-    if (!hubDetails.hub_id)
-      return res.status(200).send({ valid: false, message: "Pickup address is not regiestered at smartship" });
   } catch (err) {
     return next(err);
   }
 
-  try {
-    const isServicable = await validateSmartShipServicablity(
-      1,
-      // @ts-ignore
-      hubDetails.hub_id,
-      Number(customerDetails.pincode),
-      0,
-      []
-    );
-    if (!isServicable) return res.status(200).send({ valid: false, message: "Not servicable" });
-  } catch (err) {
-    return next(err);
-  }
   let savedProduct;
 
   try {
@@ -535,7 +435,6 @@ export const updateB2COrder = async (req: ExtendedRequest, res: Response, next: 
 
     return res.status(200).send({ valid: true, order: savedOrder });
   } catch (err) {
-    // console.log(err);
     return next(err);
   }
 };
@@ -645,24 +544,8 @@ export const createB2BOrder = async (req: ExtendedRequest, res: Response, next: 
     },
     packageDetails: [
       ...body.packageDetails,
-      // {
-      //   boxLength: body?.packageDetails?.boxLength,
-      //   boxHeight: body?.packageDetails?.boxHeight,
-      //   boxWidth: body?.packageDetails?.boxWidth,
-      //   boxSizeUnit: body?.packageDetails?.boxSizeUnit, // should be either cm or m
-      //   boxWeight: body?.packageDetails?.boxWeight,
-      //   boxWeightUnit: body?.packageDetails?.boxWeightUnit, // should be either g or kg
-      //   invoiceNumber: body?.packageDetails?.invoiceNumber,
-      //   description: body?.packageDetails?.description,
-      //   quantity: body?.packageDetails?.quantity,
-      // },
     ],
     eways: [
-      // {
-      //   amount: body?.eways?.amount,
-      //   ewayBill: body?.eways?.ewayBill,
-      //   invoiceNumber: body?.eways?.invoiceNumber,
-      // },
       ...body?.eways,
     ],
     customers: [body?.customerDetails],
@@ -680,17 +563,13 @@ export const createB2BOrder = async (req: ExtendedRequest, res: Response, next: 
 export const getCourier = async (req: ExtendedRequest, res: Response, next: NextFunction) => {
   const productId = req.params.id;
   const type = req.params.type;
-  const vendorType = req.seller.allowedVendor;
+  const users_vendors = req.seller.vendors
   let data2send: any;
   let orderDetails: any;
   if (type === "b2c") {
     try {
-      orderDetails = await B2COrderModel.findById(productId);
-      // console.log("orderDetails", orderDetails);
-      if (orderDetails !== null) {
-        //@ts-ignore
-        orderDetails = await orderDetails.populate(["pickupAddress", "productId"]);
-      }
+      orderDetails = await B2COrderModel.findOne({ _id: productId, sellerId: req.seller._id }).populate(["pickupAddress", "productId"]);
+      console.log("orderDetails", orderDetails);
     } catch (err) {
       return next(err);
     }
@@ -702,7 +581,6 @@ export const getCourier = async (req: ExtendedRequest, res: Response, next: Next
       return next(err);
     }
   }
-  const shiprocketOrderID = orderDetails.shiprocket_order_id;
   const pickupPincode = orderDetails.pickupAddress.pincode;
   const deliveryPincode = orderDetails.customerDetails.get("pincode");
   const weight = orderDetails.orderWeight;
@@ -714,6 +592,73 @@ export const getCourier = async (req: ExtendedRequest, res: Response, next: Next
   const paymentType = orderDetails.payment_mode;
   const sellerId = req.seller._id;
   const collectableAmount = orderDetails?.amount2Collect;
+
+  const hubId = orderDetails.pickupAddress.hub_id;
+
+  let shiprocketOrder;
+  const shiprocketToken = await getShiprocketToken();
+  if (!shiprocketToken) return res.status(200).send({ valid: false, message: "Invalid token" });
+
+
+  const orderPayload = {
+    "order_id": orderDetails?.order_reference_id,
+    "order_date": format(orderDetails?.order_invoice_date, 'yyyy-MM-dd HH:mm'),
+    "pickup_location": orderDetails?.name,
+    // "channel_id": "shopify",
+    // "comment": "Reseller: M/s Goku",
+    "billing_customer_name": orderDetails?.customerDetails.get("name"),
+    "billing_last_name": orderDetails?.customerDetails.get("name") || "",
+    "billing_address": orderDetails?.customerDetails.get("address"),
+    "billing_city": orderDetails?.customerDetails.get("city"),
+    "billing_pincode": orderDetails?.customerDetails.get("pincode"),
+    "billing_state": orderDetails?.customerDetails.get("state"),
+    "billing_country": "India",
+    "billing_email": orderDetails?.customerDetails.get("email") || "noreply@lorrigo.com",
+    "billing_phone": orderDetails?.customerDetails.get("phone"),
+    "shipping_is_billing": true,
+    "shipping_customer_name": orderDetails?.sellerDetails.get("sellerName") || "",
+    "shipping_last_name": orderDetails?.sellerDetails.get("sellerName") || "",
+    "shipping_address": orderDetails?.sellerDetails.get("sellerAddress"),
+    "shipping_address_2": "",
+    "shipping_city": orderDetails?.sellerDetails.get("sellerCity"),
+    "shipping_pincode": orderDetails?.sellerDetails.get("sellerPincode"),
+    "shipping_country": "India",
+    "shipping_state": orderDetails?.sellerDetails.get("sellerState"),
+    "shipping_email": "",
+    "shipping_phone": orderDetails?.sellerDetails.get("sellerPhone"),
+    "order_items": [
+      {
+        "name": orderDetails.productId.name,
+        "sku": orderDetails.productId.name,
+        "units": orderDetails.productId.quantity,
+        "selling_price": Number(orderDetails.productId.taxable_value),
+      }
+    ],
+    "payment_method": orderDetails?.payment_mode === 0 ? "Prepaid" : "COD",
+    "sub_total": Number(orderDetails.productId?.taxable_value),
+    "length": orderDetails?.orderBoxLength,
+    "breadth": orderDetails?.orderBoxWidth,
+    "height": orderDetails?.orderBoxHeight,
+    "weight": orderDetails?.orderWeight,
+  };
+
+  try {
+    if (!orderDetails.shiprocket_order_id) {
+      shiprocketOrder = await axios.post(envConfig.SHIPROCKET_API_BASEURL + APIs.CREATE_SHIPROCKET_ORDER, orderPayload, {
+        headers: {
+          Authorization: shiprocketToken,
+        },
+      });
+      orderDetails.shiprocket_order_id = shiprocketOrder.data.order_id;
+      orderDetails.shiprocket_shipment_id = shiprocketOrder.data.shipment_id;
+      await orderDetails.save();
+    }
+  } catch (error) {
+    console.log("error", error);
+  }
+
+  const shiprocketOrderID = orderDetails?.shiprocket_order_id ?? 0;
+
   data2send = await rateCalculation(
     shiprocketOrderID,
     pickupPincode,
@@ -725,9 +670,10 @@ export const getCourier = async (req: ExtendedRequest, res: Response, next: Next
     boxHeight,
     sizeUnit,
     paymentType,
+    users_vendors,
     sellerId,
     collectableAmount,
-    vendorType
+    hubId,
   );
 
   return res.status(200).send({
