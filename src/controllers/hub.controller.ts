@@ -109,6 +109,11 @@ export const createHub = async (req: ExtendedRequest, res: Response, next: NextF
       shiprocketHubPayload,
       shiprocketAPIconfig
     );
+    console.log(shiprocketResponse.data, "shiprocketResponse");
+    
+    
+    
+    
   } catch (err) {
     // @ts-ignore
     console.log(err, err?.response?.data?.errors, err?.data, "err")
@@ -267,7 +272,7 @@ export const updateHub = async (req: ExtendedRequest, res: Response, next: NextF
   }
   if (hubData === null) return res.status(200).send({ valid: false, message: "Hub not found" });
 
-  const { hub_id, name, phone, pincode, city, state, address1, address2, delivery_type_id } = hubData;
+  const { hub_id, name, contactPersonName, phone, pincode, city, state, address1, address2, delivery_type_id } = hubData;
 
   const smartshipToken = await getSmartShipToken();
   if (!smartshipToken) return res.status(500).send({ valid: false, message: "SMARTSHIP envs not found" });
@@ -283,6 +288,7 @@ export const updateHub = async (req: ExtendedRequest, res: Response, next: NextF
     hub_id,
     hub_name: name,
     hub_phone: phone,
+    contactPersonName,  ///
     pincode,
     city,
     state,
@@ -313,6 +319,7 @@ export const updateHub = async (req: ExtendedRequest, res: Response, next: NextF
         name: smartshipAPIBody.hub_name,
         phone: smartshipAPIBody.hub_phone,
         pincode: smartshipAPIBody.pincode,
+        contactPersonName: smartshipAPIBody.contactPersonName,
         city: smartshipAPIBody.city,
         state: smartshipAPIBody.state,
         address1: smartshipAPIBody.address1,
@@ -330,8 +337,6 @@ export const updateHub = async (req: ExtendedRequest, res: Response, next: NextF
   } catch (err) {
     return next(err);
   }
-
-  // return res.status(500).send({ valid: false, message: "incomplete route" });
 };
 
 export const deleteHub = async (req: ExtendedRequest, res: Response, next: NextFunction) => {

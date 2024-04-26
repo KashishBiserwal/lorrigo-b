@@ -1,9 +1,10 @@
 import { Document, Types } from 'mongoose';
 
-interface Hub {
+export interface Hub {
   _id: Types.ObjectId;
   sellerId: Types.ObjectId; // Assuming sellerId is of type ObjectId
   name: string;
+  contactPersonName: string;
   pincode: number;
   city: string;
   state: string;

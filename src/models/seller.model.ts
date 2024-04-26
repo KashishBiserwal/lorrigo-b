@@ -41,6 +41,8 @@ const sellerSchema = new mongoose.Schema({
     document1Back: { type: Buffer, required: false },
     document2Front: { type: Buffer, required: false },
     document2Back: { type: Buffer, required: false },
+    submitted: { type: Boolean, default: false },
+    verified: { type: Boolean, default: false },
   },
   bankDetails: {
     accHolderName: { type: String, required: false },
