@@ -12,7 +12,6 @@ const sellerSchema = new mongoose.Schema({
   margin: { type: Number, min: 0, max: 100, default: 20 },
   vendors: [{ type: mongoose.Schema.Types.ObjectId, ref: "Courier" }],
   isVerified: { type: Boolean, default: false },
-  allowedVendor: { type: String, required: true },
   gstInvoice: {
     gstin: { type: String, required: false },
     tan: { type: String, required: false },

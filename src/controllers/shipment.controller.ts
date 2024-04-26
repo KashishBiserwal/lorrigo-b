@@ -392,7 +392,7 @@ export async function orderManifest(req: ExtendedRequest, res: Response, next: N
 
     order.bucket = READY_TO_SHIP;
     order.orderStages.push({
-      stage: SMARTSHIP_SHIPPED_ORDER_STATUS,
+      stage: SHIPROCKET_MANIFEST_ORDER_STATUS,
       action: PICKUP_SCHEDULED_DESCRIPTION,
       stageDateTime: new Date(),
     });

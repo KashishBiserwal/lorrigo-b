@@ -68,7 +68,7 @@ export const ErrorHandler = (err: any, req: Request, res: Response, next: NextFu
     return res.status(200).send({
       valid: false,
       // @ts-ignore
-      message:  err.response.data.message ?? err.message ?? "Something went wrong",
+      message:  err?.response?.data?.message ?? err?.message ?? "Something went wrong",
     });
   } else {
     return res.status(200).send({
