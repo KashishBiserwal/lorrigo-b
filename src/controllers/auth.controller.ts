@@ -108,6 +108,7 @@ export const login = async (req: Request, res: Response) => {
     valid: true,
     user: {
       email: existingUser.email,
+      name: existingUser.name,
       id: existingUser._id,
       isVerified: false,
       token,
@@ -177,6 +178,7 @@ export const resetPassword = async (req: Request, res: Response) => {
       message: "Invalid token",
     });
   }
+  
 
   const existingUser = await SellerModel.findOne({ _id: decodedToken.userId }).lean();
   if (!existingUser) {
@@ -193,5 +195,60 @@ export const resetPassword = async (req: Request, res: Response) => {
   return res.status(200).send({
     valid: true,
     message: "password reset successfully",
+  });
+}
+
+type ChangePassBodyType = {
+  token: string;
+  password: string;
+  old_password: string;
+  confirmPassword: string;
+};
+
+export const changePassword = async (req: Request, res: Response) => {
+  const { token, password, old_password } = req.body as ChangePassBodyType;
+
+  if (!token || !password || !old_password) {
+    return res.status(200).send({
+      valid: false,
+      message: "Invalid token or password",
+    });
+  }
+
+  let decodedToken: { _id: string };
+  try {
+    decodedToken = jwt.verify(token, config.JWT_SECRET!) as { _id: string };
+  } catch (err) {
+    return res.status(200).send({
+      valid: false,
+      message: "Invalid token",
+    });
+  }
+  
+  const existingUser = await SellerModel.findOne({ _id: decodedToken._id }).lean();
+  
+  if (!existingUser) {
+    return res.status(200).send({
+      valid: false,
+      message: "User doesn't exist",
+    });
+  }
+
+  const isValidPassword = bcrypt.compareSync(old_password, existingUser.password);
+
+  if (!isValidPassword) {
+    return res.status(200).send({
+      valid: false,
+      message: "incorrect old password",
+    });
+  }
+
+  const hashPassword = await bcrypt.hash(password, config.SALT_ROUND!);
+
+  await SellerModel.updateOne({ _id: decodedToken._id }, { password: hashPassword });
+
+  return res.status(200).send({
+    valid: true,
+    message: "password changed successfully",
   });
 }

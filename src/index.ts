@@ -14,7 +14,7 @@ import customerRouter from "./routes/customer.routes";
 import morgan from "morgan";
 import shipmentRouter from "./routes/shipment.routes";
 import sellerRouter from "./routes/seller.routes";
-import runCron, { CONNECT_SHIPROCKET, CONNECT_SMARTR, CONNECT_SMARTSHIP, calculateRemittance, trackOrder_Shiprocket } from "./utils/cronjobs";
+import runCron, { CONNECT_SHIPROCKET, CONNECT_SMARTR, CONNECT_SMARTSHIP, trackOrder_Smartship } from "./utils/cronjobs";
 import Logger from "./utils/logger";
 
 app.use(cors({ origin: "*" }));
@@ -40,7 +40,6 @@ mongoose
     CONNECT_SHIPROCKET();
     CONNECT_SMARTSHIP();
     CONNECT_SMARTR();
-    calculateRemittance();
   })
   .catch((err) => {
     Logger.log(err.message);
@@ -50,8 +49,6 @@ app.use("/api/auth", authRouter);
 app.post("/api/vendor", addVendors);
 app.get("/api/getsellers", getSellers);
 app.post("/api/seller_vendor", updateVendor4Seller);
-// @ts-ignore (as Request object is extended with new property seller)
-// app.use(AuthMiddleware);
 
 //@ts-ignore
 app.post("/api/ratecalculator", AuthMiddleware, ratecalculatorController);

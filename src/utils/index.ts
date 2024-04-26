@@ -12,7 +12,7 @@ export function calculateShipmentDetails(orders: any[]) {
 
     orders.forEach(order => {
         totalShipments.push(order);
-        switch (order.orderStage) {
+        switch (order.bucket) {
             case 0:
                 pickupPending++;
                 break;
@@ -44,7 +44,7 @@ export function calculateNDRDetails(orders: any[]) {
     let NDRDelivered = 0;
 
     orders.forEach(order => {
-        switch (order.orderStage) {
+        switch (order.bucket) {
             case 12, 13, 14, 15, 16, 17:
                 totalNDR++;
                 break;
@@ -75,7 +75,7 @@ export function calculateCODDetails(orders: any[]) {
     const eightDaysAgoTimestamp = currentDateTimestamp - (8 * 24 * 60 * 60 * 1000);
     const CODPending = CODOrders.filter(order => new Date(order.order_invoice_date).getTime() < eightDaysAgoTimestamp).length;
 
-    const remittedCODOrders = CODOrders.filter(order => order.orderStage === 3);
+    const remittedCODOrders = CODOrders.filter(order => order.bucket === 3);
     const lastCODRemitted = remittedCODOrders.reduce((prev, curr) => (new Date(curr.order_invoice_date) > new Date(prev.order_invoice_date)) ? curr : prev, {});
 
     return { totalCODLast30Days, CODAvailable, CODPending, lastCODRemitted };
@@ -100,7 +100,7 @@ export async function updateOrderStatus(orderId: Types.ObjectId, stage: number, 
                     stageDateTime: new Date()
                 }
             },
-            $set: { orderStage: stage }
+            $set: { bucket: stage }
         }, { new: true });
         return updatedOrder;
     } catch (err) {

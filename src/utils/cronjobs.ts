@@ -2,25 +2,25 @@ import axios from "axios";
 import { B2COrderModel } from "../models/order.model";
 import config from "./config";
 import APIs from "./constants/third_party_apis";
-import { getActionFromStatusCode, getShiprocketToken, getSmartShipToken, getStatusCode } from "./helpers";
+import { getShiprocketBucketing, getShiprocketToken, getSmartShipToken, getSmartshipBucketing } from "./helpers";
 import * as cron from "node-cron";
 import EnvModel from "../models/env.model";
 import https from "node:https";
 import Logger from "./logger";
-import { trackShipment } from "../controllers/shipment.controller";
 import { RequiredTrackResponse, TrackResponse } from "../types/b2c";
 import { generateRemittanceId, getFridayDate } from ".";
 import RemittanceModel from "../models/remittance-modal";
 import SellerModel from "../models/seller.model";
+import { CANCELED, CANCELLATION_REQUESTED_ORDER_STATUS, CANCELLED_ORDER_DESCRIPTION, DELIVERED, ORDER_TO_TRACK } from "./lorrigo-bucketing-info";
 
 /**
  * Update order with statusCode (2) to cancelled order(3)
  * prints Error if occurred during this process
  * @returns Promise(void)
  */
-const CANCEL_REQUESTED_ORDER = async (): Promise<void> => {
+const CANCEL_REQUESTED_ORDER_SMARTSHIP = async (): Promise<void> => {
   // get all order with statusCode 2,
-  const orderUnderCancellation = await B2COrderModel.find({ orderStage: 2 });
+  const orderUnderCancellation = await B2COrderModel.find({ bucket: CANCELLATION_REQUESTED_ORDER_STATUS });
   const order_referenceIds4smartship = orderUnderCancellation.map(
     (order) => order._id + "_" + order.order_reference_id
   );
@@ -46,7 +46,6 @@ const CANCEL_REQUESTED_ORDER = async (): Promise<void> => {
   let cancelled_order;
   if (failures) {
     const failureKeys = Object.keys(failures);
-    // finding order_reference_ids with message: "Already Cancelled."
     cancelled_order = failureKeys
       .filter((key) => {
         return failures[key]?.message === "Already Cancelled.";
@@ -57,7 +56,7 @@ const CANCEL_REQUESTED_ORDER = async (): Promise<void> => {
   }
   // update db
   const findQuery = { order_reference_id: { $in: cancelled_order } };
-  const ack = await B2COrderModel.updateMany(findQuery, { orderStage: 3 });
+  const ack = await B2COrderModel.updateMany(findQuery, { bucket: CANCELED });
   Logger.plog("cronjob executed");
   Logger.log(ack);
 };
@@ -106,7 +105,7 @@ export const CONNECT_SHIPROCKET = async (): Promise<void> => {
     // Update existing document or create a new one
     await EnvModel.findOneAndUpdate(
       { name: "SHIPROCKET" },
-      { $set: { nickName: "SR", token: responseBody.token  } },
+      { $set: { nickName: "SR", token: responseBody.token } },
       { upsert: true, new: true }
     );
 
@@ -141,7 +140,7 @@ export const CONNECT_SMARTR = async (): Promise<void> => {
       // Update existing document or create a new one
       await EnvModel.findOneAndUpdate(
         { name: "SMARTR" },
-        { $set: { nickName: "SMR" , token: responseJSON.data.access_token} },
+        { $set: { nickName: "SMR", token: responseJSON.data.access_token } },
         { upsert: true, new: true }
       );
 
@@ -161,11 +160,21 @@ export const CONNECT_SMARTR = async (): Promise<void> => {
  * @emits CANCEL_REQUESTED_ORDER
  * @returns void
  */
+
 export const trackOrder_Smartship = async () => {
-  const orders = await B2COrderModel.find({ orderStage: { $gt: 1 } });
-  // console.log(orders.length, "orders found")
+  const orders = await B2COrderModel.find({ bucket: { $in: ORDER_TO_TRACK } });
+  console.log("CRON orders [SMARTSHIP]", orders.length)
 
   for (const orderWithOrderReferenceId of orders) {
+    const orderCarrierName = orderWithOrderReferenceId?.carrierName?.split(" ").pop();
+
+    const vendorNickname = await EnvModel.findOne({ name: "SMARTSHIP" }).select("nickName")
+    const isSmartship = vendorNickname && (orderCarrierName === vendorNickname.nickName);
+
+    if (!isSmartship) {
+      continue;
+    }
+
     const smartshipToken = await getSmartShipToken();
     if (!smartshipToken) {
       Logger.warn("FAILED TO RUN JOB, SMART SHIP TOKEN NOT FOUND");
@@ -183,17 +192,17 @@ export const trackOrder_Smartship = async () => {
         const keys: string[] = Object.keys(responseJSON.data.scans);
         const requiredResponse: RequiredTrackResponse = responseJSON.data.scans[keys[0]][0];
 
-        const statusCode = getStatusCode(requiredResponse?.status_description ?? '');
-        const action = getActionFromStatusCode(statusCode, requiredResponse?.action ?? '');
-        // console.log("statusCode: ", statusCode, action)
+        const bucketInfo = getSmartshipBucketing(Number(requiredResponse?.status_code) ?? -1);
 
-        if (orderWithOrderReferenceId.orderStage !== statusCode) {
-          // console.log("Updating order status...", orderWithOrderReferenceId._id, orderWithOrderReferenceId.order_reference_id);
+        console.log("bucketInfo---[SMARTSHIP]", bucketInfo)
+
+        if ((bucketInfo.bucket !== -1) && (orderWithOrderReferenceId.bucket !== bucketInfo.bucket)) {
+          console.log("Updating order status...[smartship]", orderWithOrderReferenceId._id, orderWithOrderReferenceId.order_reference_id);
           // Update order status
-          orderWithOrderReferenceId.orderStage = statusCode;
+          orderWithOrderReferenceId.bucket = bucketInfo.bucket;
           orderWithOrderReferenceId.orderStages.push({
-            stage: statusCode,
-            action: action,
+            stage: bucketInfo.bucket,
+            action: bucketInfo.description,
             stageDateTime: new Date(),
           });
           try {
@@ -202,27 +211,33 @@ export const trackOrder_Smartship = async () => {
             Logger.err("Error occurred while saving order status:", error);
           }
         }
-      } else {
-        // console.log("Error: ", JSON.stringify(responseJSON));
-        Logger.err("Error: " + JSON.stringify(responseJSON));
       }
     } catch (err) {
-      Logger.err("Error: [TrackOrder_Smartship]");
+      console.log("Error: [TrackOrder_Smartship]", err);
       Logger.err(err);
     }
   }
-};
+}
 
 export const trackOrder_Shiprocket = async () => {
+
   const orders = await B2COrderModel.find({
-    orderStage: { $gt: 1 },
-    shiprocket_order_id: { $exists: true }
+    bucket: { $in: ORDER_TO_TRACK },
   });
+  console.log("CRON: CRON orders [SHIPROCKET]", orders.length)
 
   for (const orderWithOrderReferenceId of orders) {
-    console.log("SR_response");
-
     try {
+
+      const orderCarrierName = orderWithOrderReferenceId?.carrierName?.split(" ").pop();
+
+      const vendorNickname = await EnvModel.findOne({ name: "SHIPROCKET" }).select("nickName")
+      const isShiprocket = vendorNickname && (orderCarrierName === vendorNickname.nickName);
+
+      if (!isShiprocket) {
+        continue;
+      }
+
       const shiprocketToken = await getShiprocketToken();
       if (!shiprocketToken) {
         console.log("FAILED TO RUN JOB, SHIPROCKET TOKEN NOT FOUND");
@@ -237,17 +252,17 @@ export const trackOrder_Shiprocket = async () => {
       });
 
       if (response.data.tracking_data.shipment_status) {
-        const statusCode = getStatusCode(response.data.tracking_data.shipment_status);
-        const action = getActionFromStatusCode(statusCode, response.data.tracking_data.shipment_status);
-        console.log("statusCode: ", statusCode, action)
+        const bucketInfo = getShiprocketBucketing(Number(response.data.tracking_data.shipment_status));
+        console.log("bucketInfo---[SHIPROCKET]", bucketInfo)
 
-        if (orderWithOrderReferenceId.orderStage !== statusCode) {
-          console.log("Updating order status...", orderWithOrderReferenceId._id, orderWithOrderReferenceId.order_reference_id);
+
+        if ((bucketInfo.bucket !== -1) && (orderWithOrderReferenceId.bucket !== bucketInfo.bucket)) {
+          console.log("Updating order status...[shiprocket]", orderWithOrderReferenceId._id, orderWithOrderReferenceId.order_reference_id);
           // Update order status
-          orderWithOrderReferenceId.orderStage = statusCode;
+          orderWithOrderReferenceId.bucket = bucketInfo.bucket;
           orderWithOrderReferenceId.orderStages.push({
-            stage: statusCode,
-            action: action,
+            stage: bucketInfo.bucket,
+            action: bucketInfo.description,
             stageDateTime: new Date(),
           });
           try {
@@ -257,17 +272,6 @@ export const trackOrder_Shiprocket = async () => {
           }
         }
       }
-
-
-      // const responseJSON: TrackResponse = response.data;
-      // if (responseJSON.message === "success") {
-      //   const keys: string[] = Object.keys(responseJSON.data.scans);
-      //   const requiredResponse: RequiredTrackResponse = responseJSON.data.scans[keys[0]][0];
-
-      //   const statusCode = getStatusCode(requiredResponse?.status_description ?? '');
-      //   const action = getActionFromStatusCode(statusCode, requiredResponse?.action ?? '');
-      //   // console.log("statusCode: ", statusCode, action)
-      // }
 
     } catch (err) {
       console.log(err, "SR_error");
@@ -295,7 +299,7 @@ export const calculateRemittance = async () => {
       const remittanceDate = fridayDate;
       let remittanceAmount = 0;
       const remittanceStatus = 'pending';
-      const orders = await B2COrderModel.find({ sellerId: sellerId, orderStage: 4, payment_mode: 1 }).populate("productId");
+      const orders = await B2COrderModel.find({ sellerId: sellerId, bucket: DELIVERED, payment_mode: 1 }).populate("productId");
       const BankTransactionId = '1234567890';
       if (orders.length > 0) {
         orders.forEach(order => {
@@ -321,20 +325,21 @@ export const calculateRemittance = async () => {
 
 
 export default async function runCron() {
+  console.log("to run cron")
   const expression4every2Minutes = "*/2 * * * *";
   if (cron.validate(expression4every2Minutes)) {
-    // cron.schedule(expression4every2Minutes, trackOrder_Smartship);
-    // cron.schedule(expression4every2Minutes, trackOrder_Shiprocket);
+    cron.schedule(expression4every2Minutes, trackOrder_Smartship);
+    cron.schedule(expression4every2Minutes, trackOrder_Shiprocket);
 
     const expression4every5Minute = "5 * * * *";
     const expression4every59Minute = "59 * * * *";
     const expression4every9_59Hr = "59 9 * * * ";
     const expression4everyFriday = "0 0 * * 5";
 
-    // cron.schedule(expression4every2Minutes, calculateRemittance);
+    cron.schedule(expression4everyFriday, calculateRemittance);
     cron.schedule(expression4every59Minute, CONNECT_SHIPROCKET);
     cron.schedule(expression4every59Minute, CONNECT_SMARTSHIP);
-    cron.schedule(expression4every5Minute, CANCEL_REQUESTED_ORDER);
+    cron.schedule(expression4every5Minute, CANCEL_REQUESTED_ORDER_SMARTSHIP);
     cron.schedule(expression4every9_59Hr, CONNECT_SMARTR);
 
     Logger.log("cron scheduled");

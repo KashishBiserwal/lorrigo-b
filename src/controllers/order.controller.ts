@@ -1,187 +1,20 @@
-import { Request, Response, NextFunction, query, response } from "express";
+import { Response, NextFunction } from "express";
 import type { ExtendedRequest } from "../utils/middleware";
 import { B2COrderModel, B2BOrderModel } from "../models/order.model";
 import ProductModel from "../models/product.model";
 import HubModel from "../models/hub.model";
-import CourierModel from "../models/courier.model";
 import { format } from "date-fns";
 import {
-  MetroCitys,
-  NorthEastStates,
-  calculateZone,
-  getPincodeDetails,
   getShiprocketToken,
   isValidPayload,
   rateCalculation,
-  validateSmartShipServicablity,
-  validateStringDate,
 } from "../utils/helpers";
 import { isValidObjectId } from "mongoose";
-import Logger from "../utils/logger";
 import type { ObjectId } from "mongoose";
 import envConfig from "../utils/config";
-import axios, { Axios } from "axios";
+import axios from "axios";
 import APIs from "../utils/constants/third_party_apis";
-
-// export const createB2COrder = async (req: ExtendedRequest, res: Response, next: NextFunction) => {
-//   const body = req.body;
-//   // "const { isB2C } = body;
-
-//   const isAlreadyExists = (await B2COrderModel.findOne({ order_refernce_id: body?.order_refernce_id }).lean()) !== null;
-//   if (isAlreadyExists) {
-//     return res.status(200).send({
-//       valid: true,
-//       message: `order exists with ${body?.order_refernce_id} order_reference_id`,
-//     });
-//   }
-
-//   const customerDetails = body?.customerDetails;
-//   if (!customerDetails) {
-//     return res.status(200).send({
-//       valid: false,
-//       message: "customer details required",
-//     });
-//   }
-
-//   if (
-//     !(
-//       customerDetails?.name &&
-//       customerDetails?.email &&
-//       customerDetails?.phone &&
-//       customerDetails?.address &&
-//       customerDetails?.pincode
-//     )
-//   ) {
-//     return res.status(200).send({
-//       valid: false,
-//       message: "customer details: name, email, phone, address are required",
-//     });
-//   }
-
-//   // validating picup address start
-//   if (!body?.pickupAddress) {
-//     return res.status(200).send({
-//       valid: false,
-//       message: "Pickup address is required",
-//     });
-//   }
-
-//   const paymentMode = body?.paymentMode;
-//   if (paymentMode !== 0 && paymentMode !== 1)
-//     return res.status(200).send({ valid: false, message: "Invalid payment mode." });
-
-//   if (paymentMode === 1) {
-//     if (!body?.amountToCollect) {
-//       return res.status(200).send({ valid: false, message: "amountToCollect must be defined for cod orders." });
-//     }
-//   }
-//   if (paymentMode === 0) {
-//     return res.status(200).send({ valid: false, message: "Prepaid not supported." });
-//   }
-//   const invoiceDate = body?.invoiceDate;
-//   if (!invoiceDate) {
-//     return res.status(200).send({
-//       valid: false,
-//       message: "Invoice date is requried",
-//     });
-//   }
-//   const isValidDate = validateStringDate(invoiceDate);
-//   if (!isValidDate) {
-//     return res.status(200).send({ valid: false, message: "invalid invoice date" });
-//   }
-//   const totalOrderPrice = body?.shipmentValue + (body?.productTaxRate / 100) * body?.shipmentValue;
-//   if (totalOrderPrice > 50000) {
-//     return res.status(200).send({ valid: false, message: "ewaybill is required for order worth more than 50,000" });
-//   }
-
-//   try {
-//     const hubDetails = await HubModel.findById(body?.pickupAddress);
-
-//     if (!hubDetails) {
-//       return res.status(200).send({ valid: false, message: "pickup address doesn't exists as hub" });
-//     }
-//     if (!hubDetails.hub_id) {
-//       return res.status(200).send({
-//         valid: false,
-//         message: "Pickupaddress hub_id not available (thus: not servicable)",
-//       });
-//     }
-
-//     const isServicable = await validateSmartShipServicablity(
-//       1,
-//       hubDetails.hub_id,
-//       Number(customerDetails.pincode),
-//       0,
-//       []
-//     );
-
-//     if (!isServicable) {
-//       return res.status(200).send({
-//         valid: false,
-//         message: "not servicable",
-//       });
-//     }
-//   } catch (err) {
-//     return next(err);
-//   }
-
-//   // product validation and saving to db start here...
-//   if (!body?.productDetails) {
-//     return res.status(200).send({
-//       valid: false,
-//       message: "Product details are required",
-//     });
-//   }
-//   const { name, category, hsn_code, quantity } = body.productDetails;
-//   if (
-//     !(
-//       typeof name === "string" ||
-//       typeof category === "string" ||
-//       typeof hsn_code === "string" ||
-//       typeof quantity === "number"
-//     )
-//   ) {
-//     return res.status(200).send({ valid: false, message: "Invalid payload type" });
-//   }
-
-//   const product2save = new ProductModel({
-//     name: name,
-//     category: category,
-//     hsn_code: hsn_code,
-//     quantity: quantity,
-//   });
-//   let savedProduct;
-
-//   try {
-//     savedProduct = await product2save.save();
-//   } catch (err) {
-//     return next(err);
-//   }
-
-//   // product validation and saving to end here...
-//   // const isServicable = await validateSmartShipServicablity(1);
-//   const order2save = new B2COrderModel({
-//     ...body,
-//     isB2C: true,
-//     sellerId: req.seller._id,
-//     productId: savedProduct._id,
-//     pickupAddress: body?.pickupAddress,
-//     customerDetails: customerDetails,
-//   });
-
-//   let savedOrder;
-//   try {
-//     const order = new B2COrderModel(order2save);
-//     savedOrder = await (await order.save()).populate("productId");
-//   } catch (err) {
-//     return next(err);
-//   }
-
-//   return res.status(200).json({
-//     valid: true,
-//     order: savedOrder,
-//   });
-// };
+import { DELIVERED, IN_TRANSIT, NDR, NEW, NEW_ORDER_DESCRIPTION, NEW_ORDER_STATUS, READY_TO_SHIP, RTO } from "../utils/lorrigo-bucketing-info";
 
 // TODO create api to delete orders
 
@@ -265,12 +98,11 @@ export const createB2COrder = async (req: ExtendedRequest, res: Response, next: 
   const orderboxUnit = "kg";
 
   const orderboxSize = "cm";
-
   let savedOrder;
   const data = {
     sellerId: req.seller?._id,
-    orderStage: 0,
-    orderStages: [{ stage: 0, stageDateTime: new Date(), action: "New" }],
+    bucket: NEW,
+    orderStages: [{ stage: NEW_ORDER_STATUS, stageDateTime: new Date(), action: NEW_ORDER_DESCRIPTION }],
     pickupAddress: body?.pickupAddress,
     productId: savedProduct._id,
     order_reference_id: body?.order_reference_id,
@@ -332,10 +164,11 @@ export const updateB2COrder = async (req: ExtendedRequest, res: Response, next: 
 
   if (!isValidPayload(productDetails, ["name", "category", "quantity", "taxRate", "taxableValue"]))
     return res.status(200).send({ valid: false, message: "Invalid payload: productDetails" });
-  if (!isValidPayload(customerDetails, ["name", "phone", "address", "pincode"]))
+  if (!isValidPayload(customerDetails, ["name", "phone", "address", "pincode", "state", "city"]))
     return res.status(200).send({ valid: false, message: "Invalid payload: customerDetails" });
   if (!isValidObjectId(body.pickupAddress))
     return res.status(200).send({ valid: false, message: "Invalid pickupAddress" });
+
 
   if (!(body.payment_mode === 0 || body.payment_mode === 1))
     return res.status(200).send({ valid: false, message: "Invalid payment mode" });
@@ -395,8 +228,8 @@ export const updateB2COrder = async (req: ExtendedRequest, res: Response, next: 
   try {
     const data = {
       sellerId: req.seller?._id,
-      orderStage: 0,
-      orderStages: [{ stage: 0, stageDateTime: new Date(), action: "New" }],
+      bucket: NEW,
+      orderStages: [{ stage: NEW_ORDER_STATUS, stageDateTime: new Date(), action: NEW_ORDER_DESCRIPTION }],
       pickupAddress: body?.pickupAddress,
       productId: savedProduct?._id,
       order_reference_id: body?.order_reference_id,
@@ -442,15 +275,15 @@ export const updateB2COrder = async (req: ExtendedRequest, res: Response, next: 
 
 export const getOrders = async (req: ExtendedRequest, res: Response, next: NextFunction) => {
   const sellerId = req.seller._id;
-  let { limit = 50, page = 1, status }: { limit?: number; page?: number; status?: string } = req.query;
+  let { limit, page , status }: { limit?: number; page?: number; status?: string } = req.query;
 
   const obj = {
-    new: [0],
-    "ready-for-pickup": [2, 3, 4],
-    "in-transit": [10, 27, 30],
-    delivered: [11],
-    ndr: [12, 13, 14, 15, 16, 17, 214],
-    rto: [18, 19, 118, 198, 199, 201, 212],
+    new: [NEW],
+    "ready-to-ship": [READY_TO_SHIP],
+    "in-transit": [IN_TRANSIT],
+    delivered: [DELIVERED],
+    ndr: [NDR],
+    rto: [RTO],
   };
 
   limit = Number(limit);
@@ -465,7 +298,7 @@ export const getOrders = async (req: ExtendedRequest, res: Response, next: NextF
     let query: any = { sellerId };
 
     if (status && obj.hasOwnProperty(status)) {
-      query.orderStage = { $in: obj[status as keyof typeof obj] };
+      query.bucket = { $in: obj[status as keyof typeof obj] };
     }
 
     orders = await B2COrderModel
@@ -688,7 +521,7 @@ export const getSpecificOrder = async (req: ExtendedRequest, res: Response, next
     return res.status(200).send({ valid: false, message: "Invalid orderId" });
   }
   //@ts-ignore
-  const order = await B2COrderModel.findOne({ _id: orderId, sellerId: req.seller?._id }).lean();
+  const order = await B2COrderModel.findOne({ _id: orderId, sellerId: req.seller?._id }).populate(["pickupAddress", "productId"]).lean();
 
   return !order
     ? res.status(200).send({ valid: false, message: "So such order found." })

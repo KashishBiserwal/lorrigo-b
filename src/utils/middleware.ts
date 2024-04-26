@@ -65,10 +65,10 @@ export const ErrorHandler = (err: any, req: Request, res: Response, next: NextFu
         message: "Invalid Id",
       });
     }
-    Logger.log(err);
     return res.status(200).send({
       valid: false,
-      message: err.message,
+      // @ts-ignore
+      message:  err.response.data.message ?? err.message ?? "Something went wrong",
     });
   } else {
     return res.status(200).send({

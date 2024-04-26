@@ -1,49 +1,12 @@
 import mongoose from "mongoose";
 
-// const B2COrderSchema = new mongoose.Schema({
-//   sellerId: { type: mongoose.Schema.Types.ObjectId, ref: "Seller", required: true },
-//   // isB2C: { type: Boolean, required: true },
-//   //  will require seller details / maybe hub details
-//   orderStage: { type: Number, default: 0 }, // 0 - no shipped, 1 -shipped
-//   order_refernce_id: { type: String, required: true, unique: true },
-//   pickupAddress: { type: mongoose.Schema.Types.ObjectId, ref: "Hub" },
-//   productId: { type: mongoose.Schema.Types.ObjectId, ref: "Products", required: true },
-//   shipmentValue: { type: Number, required: true },
-//   productTaxRate: { type: Number, required: true, min: 0, max: 100 },
-//   isContainFragileItem: { type: Boolean, required: true },
-//   invoiceNumber: { type: String, required: true },
-//   invoiceDate: { type: String, required: true },
-//   paymentMode: { type: String, required: true }, // 1 = COD, 0 = prepaid
-//   numberOfBox: { type: Number, required: true },
-//   packageType: { type: String, required: true },
-//   boxLength: { type: Number, required: true },
-//   boxWidth: { type: Number, required: true },
-//   boxHeight: { type: Number, required: true },
-//   sizeUnit: { type: String, required: true },
-//   boxWeight: { type: Number, required: true },
-//   weightUnit: { type: String, required: true },
-//   ewaybill: { type: String, required: false },
-//   amountToCollect: { type: Number, required: false, default: 0 },
-//   customerDetails: {
-//     name: { type: String, required: true },
-//     email: { type: String, required: true },
-//     phone: { type: String, required: true },
-//     address: { type: String, required: true },
-//     city: { type: String, required: true },
-//     state: { type: String, required: true },
-//     pincode: { type: String, required: true },
-//     type: mongoose.Schema.Types.Map,
-//     required: true,
-//   },
-// });
-
 const B2COrderSchema = new mongoose.Schema({
   awb: { type: String },
   shiprocket_order_id: { type: String , required: false },
   shiprocket_shipment_id: { type: String, required: false  },
 
   sellerId: { type: mongoose.Schema.Types.ObjectId, ref: "Seller", required: true },
-  orderStage: { type: Number, required: true }, // 0 -> not shipped, 1 -> shipped, 2 -> Cancelation Request, 3->Canceled
+  bucket: { type: Number, required: true }, // 0 -> not shipped, 1 -> shipped, 2 -> Cancelation Request, 3->Canceled
   orderStages: [
     {
       stage: { type: Number, required: true },
@@ -81,8 +44,8 @@ const B2COrderSchema = new mongoose.Schema({
     email: { type: String, required: true },
     phone: { type: String, required: true },
     address: { type: String, required: true },
-    city: { type: String, required: false },
-    state: { type: String, required: false },
+    city: { type: String, required: true },
+    state: { type: String, required: true },
     pincode: { type: String, required: true },
   },
 

@@ -13,6 +13,7 @@ import { isValidObjectId } from "mongoose";
 import CustomPricingModel from "../models/custom_pricing.model";
 import envConfig from "./config";
 import { Types } from "mongoose";
+import { CANCELED, DELIVERED, IN_TRANSIT, LOST_DAMAGED, NDR, RTO } from "./lorrigo-bucketing-info";
 
 export const validateEmail = (email: string): boolean => {
   return /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)*[a-zA-Z]{2,}))$/.test(
@@ -149,6 +150,7 @@ export const ratecalculatorController = async (req: ExtendedRequest, res: Respon
   const body = req.body;
   const seller = req.seller;
   const users_vendors = seller?.vendors || [];
+  console.log(users_vendors)
   if (
     !isValidPayload(body, [
       "pickupPincode",
@@ -168,21 +170,152 @@ export const ratecalculatorController = async (req: ExtendedRequest, res: Respon
       message: "inalid payload",
     });
   }
+
   try {
-    const data2send = await rateCalculation(
-      body.pickupPincode,
-      body.deliveryPincode,
-      body.weight,
-      body.weightUnit,
-      body.boxLength,
-      body.boxWidth,
-      body.boxHeight,
-      body.sizeUnit,
-      body.paymentType,
-      seller._id,
-      body?.collectableAmount,
-      users_vendors
-    );
+
+    let weight = body.weight;
+
+    const numPaymentType = Number(body.paymentType);
+    if (!(numPaymentType === 0 || numPaymentType === 1)) throw new Error("Invalid paymentType");
+    if (body.paymentType === 1) {
+      if (!body.collectableAmount) throw new Error("collectable amount is required.");
+    }
+    if (body.weightUnit === "g") {
+      weight = (1 / 1000) * weight;
+    }
+    let volumetricWeight = null;
+    if (body.sizeUnit === "cm") {
+      const volume = body.boxLength * body.boxWidth * body.boxHeight;
+      volumetricWeight = Math.round(volume / 5000);
+    } else if (body.sizeUnit === "m") {
+      volumetricWeight = Math.round((body.boxLength * body.boxWidth * body.boxHeight) / 5);
+    } else {
+      throw new Error("unhandled size unit");
+    }
+
+    const pickupDetails = await getPincodeDetails(Number(body.pickupPincode));
+    const deliveryDetails = await getPincodeDetails(Number(body.deliveryPincode));
+
+    if (!pickupDetails || !deliveryDetails) throw new Error("invalid pickup or delivery pincode");
+
+
+    const data2send: {
+      name: string;
+      minWeight: number;
+      charge: number;
+      type: string;
+      expectedPickup: string;
+      carrierID: number;
+      order_zone: string;
+      nickName?: string;
+
+    }[] = [];
+
+    // Convert vendor IDs to ObjectId format
+    // @ts-ignore
+    const vendorIds = users_vendors.map(convertToObjectId).filter(id => id !== null);
+
+    // Check if any IDs failed to convert
+    if (vendorIds.length !== users_vendors.length) {
+      console.error('Some vendor IDs could not be converted.');
+    }
+
+    const vendors = await CourierModel.find({
+      _id: { $in: vendorIds }
+    });
+
+
+    const loopLength = vendors.length;
+
+
+    for (let i = 0; i < loopLength; i++) {
+      console.log(weight, "wright")
+      let orderWeight = volumetricWeight > Number(weight) ? volumetricWeight : Number(weight);
+      const cv = vendors[i];
+      console.log("cv", cv)
+
+      let order_zone = "";
+      let increment_price = null;
+      const userSpecificUpdatedVendorDetails = await CustomPricingModel.find({
+        vendorId: cv._id,
+        sellerId: seller._id,
+      });
+      if (userSpecificUpdatedVendorDetails.length === 1) {
+        cv.withinCity = userSpecificUpdatedVendorDetails[0].withinCity;
+        cv.withinZone = userSpecificUpdatedVendorDetails[0].withinZone;
+        cv.withinMetro = userSpecificUpdatedVendorDetails[0].withinMetro;
+        cv.northEast = userSpecificUpdatedVendorDetails[0].northEast;
+        cv.withinRoi = userSpecificUpdatedVendorDetails[0].withinRoi;
+      }
+      if (pickupDetails.District === deliveryDetails.District) {
+        increment_price = cv.withinCity;
+        order_zone = "Zone A";
+      } else if (pickupDetails.StateName === deliveryDetails.StateName) {
+        // same state
+        increment_price = cv.withinZone;
+        order_zone = "Zone B";
+      } else if (
+        MetroCitys.find((city) => city === pickupDetails?.District) &&
+        MetroCitys.find((city) => city === deliveryDetails?.District)
+      ) {
+        // metro citys
+        increment_price = cv.withinMetro;
+        order_zone = "Zone C";
+      } else if (
+        NorthEastStates.find((state) => state === pickupDetails?.StateName) &&
+        NorthEastStates.find((state) => state === deliveryDetails?.StateName)
+      ) {
+        // north east
+        increment_price = cv.northEast;
+        order_zone = "Zone E";
+      } else {
+        increment_price = cv.withinRoi;
+        order_zone = "Zone D";
+      }
+      if (!increment_price) {
+        return [{ message: "invalid incrementPrice" }];
+      }
+      const parterPickupTime = cv.pickupTime;
+      const partnerPickupHour = Number(parterPickupTime.split(":")[0]);
+      const partnerPickupMinute = Number(parterPickupTime.split(":")[1]);
+      const partnerPickupSecond = Number(parterPickupTime.split(":")[2]);
+      const pickupTime = new Date(new Date().setHours(partnerPickupHour, partnerPickupMinute, partnerPickupSecond, 0));
+
+      const currentTime = new Date();
+      let expectedPickup: string;
+      if (pickupTime < currentTime) {
+        expectedPickup = "Tomorrow";
+      } else {
+        expectedPickup = "Today";
+      }
+
+      const minWeight = cv.weightSlab;
+      // TODO apply cod
+      //@ts-ignore
+      let totalCharge = 0;
+      totalCharge += increment_price.basePrice;
+      orderWeight = orderWeight - cv.weightSlab;
+      const codPrice = cv.codCharge?.hard;
+      const codAfterPercent = (cv.codCharge?.percent / 100) * body.collectableAmount;
+      let cod = 0;
+      if (body.paymentType === 1) {
+        cod = codPrice > codAfterPercent ? codPrice : codAfterPercent;
+      }
+      const weightIncrementRatio = Math.ceil(orderWeight / cv.incrementWeight);
+      // console.log("weightIncrementRatio", weightIncrementRatio)
+      totalCharge += increment_price.incrementPrice * weightIncrementRatio + cod;
+
+      data2send.push({
+        name: cv.name,
+        minWeight,
+        charge: totalCharge,
+        type: cv.type,
+        expectedPickup,
+        carrierID: cv.carrierID,
+        order_zone,
+      });
+    }
+
     return res.status(200).send({ valid: true, rates: data2send });
   } catch (err) {
     return next(err);
@@ -237,8 +370,6 @@ export const rateCalculation = async (
 
   if (!pickupDetails || !deliveryDetails) throw new Error("invalid pickup or delivery pincode");
 
-
-
   // Convert vendor IDs to ObjectId format
   const vendorIds = users_vendors.map(convertToObjectId).filter(id => id !== null);
 
@@ -267,6 +398,7 @@ export const rateCalculation = async (
 
     const response = await axios.get(url, config);
     const courierCompanies = response?.data?.data?.available_courier_companies;
+
 
     const shiprocketNiceName = await EnvModel.findOne({ name: "SHIPROCKET" }).select("_id nickName");
     vendors.forEach((vendor: any) => {
@@ -302,7 +434,6 @@ export const rateCalculation = async (
     const smartShipNiceName = await EnvModel.findOne({ name: "SMARTSHIP" }).select("_id nickName");
     if (smartShipNiceName) {
       const smartShipVendors = vendors.filter((vendor) => {
-        console.log("vendor", vendor?.vendor_channel_id?.toString() === smartShipNiceName._id.toString());
         return vendor?.vendor_channel_id?.toString() === smartShipNiceName._id.toString();
       });
       if (isSmartshipServicable) {
@@ -313,10 +444,6 @@ export const rateCalculation = async (
             nickName: smartShipNiceName.nickName
           };
         });
-
-        console.log("smartShipVendorsWithNickname", smartShipVendorsWithNickname);
-        
-
         commonCouriers.push(...smartShipVendorsWithNickname);
       }
     }
@@ -379,7 +506,6 @@ export const rateCalculation = async (
       order_zone = "Zone E";
     } else {
       increment_price = cv.withinRoi;
-      // console.log("roi", cv.withinRoi), increment_price
       order_zone = "Zone D";
     }
     if (!increment_price) {
@@ -415,10 +541,6 @@ export const rateCalculation = async (
     // console.log("weightIncrementRatio", weightIncrementRatio)
     totalCharge += increment_price.incrementPrice * weightIncrementRatio + cod;
 
-    console.log("totalCharge", cv);
-
-
-
     data2send.push({
       nickName: cv.nickName,
       name: cv.name,
@@ -431,7 +553,6 @@ export const rateCalculation = async (
     });
   }
 
-  console.log("data2send", data2send)
   return data2send;
 };
 
@@ -542,77 +663,105 @@ export async function getShiprocketToken(): Promise<string | false> {
   } catch (error) {
     return false;
   }
-
 }
 
-export function getStatusCode(description: string): number {
-  const statusMap: { [key: string]: number | number[] } = {
-    "Open": 0,
-    "Confirmed": 2,
-    "Shipping Label Generated": 3,
-    "Manifested": 4,
-    "Shipped": 10,
-    "Delivered": 11,
-    "Delivery Attempted-Out Of Delivery Area": 12,
-    "Delivery Attempted-Address Issue / Wrong Address": 13,
-    "Delivery Attempted-COD Not ready": 14,
-    "Delivery Attempted-Customer Not Available/Contactable": 15,
-    "Delivery Attempted-Customer Refused To Accept Delivery": 16,
-    "Delivery Attempted-Requested for Future Delivery": 17,
-    "Return To Origin": 18,
-    "RTO Delivered To Shipper": 19,
-    "Delivery Attempted - Requested For Open Delivery": 22,
-    "Delivery Attempted - Others": 23,
-    "Courier Assigned": 24,
-    "Cancellation Requested By Client": 26,
-    "In Transit": 27,
-    "RTO In Transit": 28,
-    "Out For Delivery": 30,
-    "Handed Over to Courier": 36,
-    "Delivery Confirmed by Customer": 48,
-    "In Transit Delay - ODA Location/ Area Not Accessible": 59,
-    "RTO to be Refunded": 118,
-    "Cancelled By Client": 185,
-    "Forward Shipment Lost": 189,
-    "RTO-Rejected by Merchant": 198,
-    "RTO-Delivered to FC": [199, 201],
-    "Shipped - In Transit - Misrouted": 207,
-    "Shipped - In Transit - Destination Reached": 209,
-    "Delivery Not Attempted": 210,
-    "RTO - In Transit - Damaged": 212,
-    "Delivery Attempted-Refused by Customer with OTP": 214,
+
+export function getShiprocketBucketing(status: number) {
+  const shiprocketStatusMapping = {
+    // 13: { bucket: NEW, description: "Pickup Error" },
+    // 15: { bucket: NEW, description: "Pickup Rescheduled" },
+    // 19: { bucket: NEW, description: "Out For Pickup" },
+    // 20: { bucket: NEW, description: "Pickup Exception" },
+    // 27: { bucket: NEW, description: "Pickup Booked" },
+    // 52: { bucket: NEW, description: "Shipment Booked" },
+    // 54: { bucket: NEW, description: "In Transit Overseas" },
+    // 55: { bucket: NEW, description: "Connection Aligned" },
+    // 56: { bucket: NEW, description: "FC MANIFEST GENERATED" },
+
+
+    6: { bucket: IN_TRANSIT, description: "Shipped" },
+    7: { bucket: DELIVERED, description: "Delivered" },
+    8: { bucket: CANCELED, description: "Canceled" },
+    9: { bucket: RTO, description: "RTO Initiated" },
+    10: { bucket: RTO, description: "RTO Delivered" },
+    12: { bucket: LOST_DAMAGED, description: "Lost" },
+    14: { bucket: RTO, description: "RTO Acknowledged" },
+    16: { bucket: RTO, description: "Cancellation Requested" },
+    17: { bucket: IN_TRANSIT, description: "Out For Delivery" },
+    18: { bucket: IN_TRANSIT, description: "In Transit" },
+    21: { bucket: NDR, description: "Undelivered" },
+    22: { bucket: IN_TRANSIT, description: "Delayed" },
+    23: { bucket: IN_TRANSIT, description: "Partial Delivered" },
+    24: { bucket: LOST_DAMAGED, description: "Destroyed" },
+    25: { bucket: LOST_DAMAGED, description: "Damaged" },
+    26: { bucket: DELIVERED, description: "Fulfilled" },
+    38: { bucket: IN_TRANSIT, description: "Reached At Destination Hub" },
+    39: { bucket: IN_TRANSIT, description: "Misrouted" },
+    40: { bucket: RTO, description: "RTO_NDR" },
+    41: { bucket: RTO, description: "RTO_OFD" },
+    42: { bucket: IN_TRANSIT, description: "Picked Up" },
+    43: { bucket: DELIVERED, description: "Self Fulfilled" },
+    44: { bucket: 8, description: "Disposed Off" },
+    45: { bucket: CANCELED, description: "Cancelled Before Dispatched" },
+    46: { bucket: RTO, description: "RTO In Intransit" },
+    48: { bucket: IN_TRANSIT, description: "Reached Warehouse" },
+    50: { bucket: IN_TRANSIT, description: "In Flight" },
+    51: { bucket: IN_TRANSIT, description: "Handover To Courier" },
+    75: { bucket: RTO, description: "RTO_LOCK" },
+    76: { bucket: IN_TRANSIT, description: "UNTRACEABLE" },
+    77: { bucket: IN_TRANSIT, description: "ISSUE_RELATED_TO_THE_RECIPIENT" },
+    78: { bucket: RTO, description: "REACHED_BACK_AT_SELLER_CITY" },
+    // Additional statuses omitted for brevity
   };
-
-  if (statusMap.hasOwnProperty(description)) {
-    const statusCode = statusMap[description];
-    return Array.isArray(statusCode) ? statusCode[0] : statusCode;
-  }
-
-  return -1;
+  return shiprocketStatusMapping[status as keyof typeof shiprocketStatusMapping] || { bucket: -1, description: "Status code not found" };
 }
 
-export function getActionFromStatusCode(statusCode: number, defaultAction: string): string {
-  switch (statusCode) {
-    case 10:
-      return "Shipped";
-    case 18:
-      return "RTO initiated";
-    case 19:
-      return "RTO delivered";
-    case 28:
-    case 118:
-      return "RTO in transit";
-    case 198:
-      return "RTO rejected";
-    case 199:
-    case 201:
-      return "RTO delivered";
-    case 212:
-      return "RTO damaged";
-    default:
-      return defaultAction !== undefined ? defaultAction : ""; // Return default action if provided, else return empty string
-  }
+
+
+export function getSmartshipBucketing(status: number) {
+  const smartshipStatusMapping = {
+
+    // commented statuses are not using by the our tracking system 
+    // 0: { bucket: NEW, description: "Open" },
+    // 2: { bucket: NEW, description: "Confirmed" },
+    // 3: { bucket: NEW, description: "Shipping Label Generated" },
+    // 24: { bucket: NEW, description: "Courier Assigned" },
+    // 4: { bucket: NEW, description: "Manifested" },
+
+
+    10: { bucket: IN_TRANSIT, description: "Shipped" },
+    27: { bucket: IN_TRANSIT, description: "In Transit" },
+    30: { bucket: IN_TRANSIT, description: "Out For Delivery" },
+    36: { bucket: IN_TRANSIT, description: "Handed Over to Courier" },
+    207: { bucket: IN_TRANSIT, description: "Misrouted" },
+    209: { bucket: IN_TRANSIT, description: "Destination Reached" },
+    210: { bucket: IN_TRANSIT, description: "Delivery Not Attempted" },
+    12: { bucket: NDR, description: "Delivery Attempted-Out Of Delivery Area" },
+    13: { bucket: NDR, description: "Delivery Attempted-Address Issue / Wrong Address" },
+    14: { bucket: NDR, description: "Delivery Attempted-COD Not ready" },
+    15: { bucket: NDR, description: "Delivery Attempted-Customer Not Available/Contactable" },
+    16: { bucket: NDR, description: "Delivery Attempted-Customer Refused To Accept Delivery" },
+    17: { bucket: NDR, description: "Delivery Attempted-Requested for Future Delivery" },
+    22: { bucket: NDR, description: "Delivery Attempted - Requested For Open Delivery" },
+    23: { bucket: NDR, description: "Delivery Attempted - Others" },
+    26: { bucket: NDR, description: "Cancellation Requested By Client" },
+    59: { bucket: NDR, description: "In Transit Delay - ODA Location/ Area Not Accessible" },
+    185: { bucket: NDR, description: "Cancelled By Client" },
+    214: { bucket: NDR, description: "Delivery Attempted-Refused by Customer with OTP" },
+    11: { bucket: DELIVERED, description: "Delivered" },
+    48: { bucket: DELIVERED, description: "Delivery Confirmed by Customer" },
+    18: { bucket: RTO, description: "Return To Origin" },
+    19: { bucket: RTO, description: "RTO Delivered To Shipper" },
+    28: { bucket: RTO, description: "RTO In Transit" },
+    118: { bucket: RTO, description: "RTO to be Refunded" },
+    198: { bucket: RTO, description: "RTO-Rejected by Merchant" },
+    199: { bucket: RTO, description: "RTO-Delivered to FC" },
+    212: { bucket: RTO, description: "RTO - In Transit - Damaged" },
+    189: { bucket: LOST_DAMAGED, description: "Forward Shipment Lost" },
+  };
+  return smartshipStatusMapping[status as keyof typeof smartshipStatusMapping] || { bucket: -1, description: "Status code not found" };
 }
+
 
 
 export async function isSmartr_surface_servicable(pincode: number): Promise<boolean> {
