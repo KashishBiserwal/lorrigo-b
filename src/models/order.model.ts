@@ -60,7 +60,7 @@ const B2COrderSchema = new mongoose.Schema({
     sellerCity: { type: String, required: false },
     sellerState: { type: String, required: false },
     sellerPincode: { type: Number, required: false },
-    sellerPhone: { type: Number, required: false },
+    sellerPhone: { type: String, required: false },
   },
 
   /*

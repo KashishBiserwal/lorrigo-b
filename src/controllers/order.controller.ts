@@ -128,7 +128,7 @@ export const createB2COrder = async (req: ExtendedRequest, res: Response, next: 
       sellerPincode: Number(body?.sellerDetails.sellerPincode),
       sellerCity: body?.sellerDetails.sellerCity,
       sellerState: body?.sellerDetails.sellerState,
-      sellerPhone: Number(body?.sellerDetails.sellerPhone),
+      sellerPhone: body?.sellerDetails.sellerPhone,
     },
   };
 
@@ -255,7 +255,7 @@ export const updateB2COrder = async (req: ExtendedRequest, res: Response, next: 
         sellerPincode: Number(body?.sellerDetails.sellerPincode),
         sellerCity: body?.sellerDetails.sellerCity,
         sellerState: body?.sellerDetails.sellerState,
-        sellerPhone: Number(body?.sellerDetails.sellerPhone),
+        sellerPhone: body?.sellerDetails.sellerPhone,
       },
     };
 
@@ -304,7 +304,6 @@ export const getOrders = async (req: ExtendedRequest, res: Response, next: NextF
     orders = await B2COrderModel
       .find(query)
       .sort({ createdAt: -1 })
-      .limit(50)
       .populate("productId")
       .populate("pickupAddress")
       .lean();
@@ -402,7 +401,6 @@ export const getCourier = async (req: ExtendedRequest, res: Response, next: Next
   if (type === "b2c") {
     try {
       orderDetails = await B2COrderModel.findOne({ _id: productId, sellerId: req.seller._id }).populate(["pickupAddress", "productId"]);
-      console.log("orderDetails", orderDetails);
     } catch (err) {
       return next(err);
     }

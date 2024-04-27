@@ -68,6 +68,9 @@ export async function createShipment(req: ExtendedRequest, res: Response, next: 
   const vendorName = await EnvModel.findOne({ nickName: body.carrierNickName });
 
   if (vendorName?.name === "SMARTSHIP") {
+
+    console.log("SMARTSHIP", vendorName?.name);
+
     const productValueWithTax =
       Number(productDetails.taxable_value) +
       (Number(productDetails.tax_rate) / 100) * Number(productDetails.taxable_value);
@@ -135,11 +138,14 @@ export async function createShipment(req: ExtendedRequest, res: Response, next: 
       smartshipToken = await getSmartShipToken();
       if (!smartshipToken) return res.status(200).send({ valid: false, message: "Invalid token" });
     } catch (err) {
+      console.log(err, "erro")
+
       return next(err);
     }
     let externalAPIResponse: any;
     try {
       const requestConfig = { headers: { Authorization: smartshipToken } };
+      console.log(shipmentAPIBody, "shipmentAPIBody[SMARTSHIP]")
       const response = await axios.post(
         config.SMART_SHIP_API_BASEURL + APIs.CREATE_SHIPMENT,
         shipmentAPIBody,
@@ -159,9 +165,11 @@ export async function createShipment(req: ExtendedRequest, res: Response, next: 
         .status(200)
         .send({ valid: false, message: "order failed to create", order, response: externalAPIResponse });
     } else {
+      console.log("externalAPIResponse", externalAPIResponse);
       const shipmentResponseToSave = new ShipmentResponseModel({ order: order._id, response: externalAPIResponse });
       try {
         const savedShipmentResponse = await shipmentResponseToSave.save();
+        console.log(savedShipmentResponse, externalAPIResponse?.data?.success_order_details, "savedShipmentResponse");
         const awbNumber = externalAPIResponse?.data?.success_order_details?.orders[0]?.awb_number
         const carrierName = externalAPIResponse?.data?.success_order_details?.orders[0]?.carrier_name + " " + (vendorName?.nickName);
         order.client_order_reference_id = client_order_reference_id;
@@ -176,6 +184,8 @@ export async function createShipment(req: ExtendedRequest, res: Response, next: 
         const updatedOrder = await order.save();
         return res.status(200).send({ valid: true, order: updatedOrder, shipment: savedShipmentResponse });
       } catch (err) {
+        console.log(err, "erro")
+
         return next(err);
       }
     }
@@ -185,6 +195,8 @@ export async function createShipment(req: ExtendedRequest, res: Response, next: 
     try {
 
       const shiprocketToken = await getShiprocketToken();
+
+      console.log(shiprocketToken, "shiprocketToken")
 
       const genAWBPayload = {
         shipment_id: order.shiprocket_shipment_id,
@@ -198,8 +210,15 @@ export async function createShipment(req: ExtendedRequest, res: Response, next: 
           },
         });
 
-        order.awb = awbResponse.data.response.data.awb_code;
-        order.carrierName = awbResponse.data.response.data.courier_name + " " + (vendorName?.nickName);
+        console.log(awbResponse?.data?.response?.data, "awbResponse.data");
+        const { awb_code, courier_name } = awbResponse?.data?.response?.data;
+
+        if (!awb_code || !courier_name) {
+          return res.status(200).send({ valid: false, message: "Internal Server Error, Please use another courier partner" });
+        }
+
+        order.awb = awbResponse?.data?.response?.data?.awb_code;
+        order.carrierName = awbResponse?.data?.response?.data.courier_name + " " + (vendorName?.nickName);
 
         order.bucket = READY_TO_SHIP;
         order.orderStages.push({
@@ -461,104 +480,110 @@ export async function orderManifest(req: ExtendedRequest, res: Response, next: N
 }
 
 export async function orderReattempt(req: ExtendedRequest, res: Response, next: NextFunction) {
-  const body = req.body;
-  const vendorType = req.seller.allowedVendor;
-  const { orderId, rescheduleDate, comment, phone, address } = body;
-
-  if (!(orderId && isValidObjectId(orderId))) {
-    return res.status(200).send({ valid: false, message: "Invalid payload" });
-  }
-
-  let order;
   try {
-    order = await B2COrderModel.findOne({ _id: orderId, sellerId: req.seller._id });
-  } catch (err) {
-    return next(err);
-  }
+    const body = req.body;
+    const { orderId, ndrInfo: { rescheduleDate, comment, contact, address, name }, type } = body;
 
-  if (!order) return res.status(200).send({ valid: false, message: "Order not found" });
+    if (!(orderId && isValidObjectId(orderId))) {
+      return res.status(200).send({ valid: false, message: "Invalid payload" });
+    }
 
-  if (vendorType === "SS") {
-    const smartshipToken = await getSmartShipToken();
-    if (!smartshipToken) return res.status(200).send({ valid: false, message: "Smartship ENVs not found" });
+    let order;
+    try {
+      order = await B2COrderModel.findOne({ _id: orderId, sellerId: req.seller._id });
+    } catch (err) {
+      return next(err);
+    }
 
-    const shipmentAPIConfig = { headers: { Authorization: smartshipToken } };
+    if (!order) return res.status(200).send({ valid: false, message: "Order not found" });
 
-    const requestBody = {
-      orders: [
-        {
-          // request_order_id: 10977589,   // Yes, if client_order_reference_id not provied
-          action_id: 1,   // 1 --> reattempt, 2 --> rto
-          names: "sachin",
-          phone: 9876543211,
-          comments: "la",
-          next_attempt_date: "2023-04-01",
-          client_order_reference_id: [""],
-          address: "test_addresss",
-          alternate_address: "Unitech Cyber Park",
-          alternate_number: ""
+    const carrierName = order.carrierName ? order.carrierName.split(" ").pop() : null;
+
+    const vendorName = await EnvModel.findOne({ nickName: carrierName });
+
+    console.log(vendorName?.name, "vendorName?.name", carrierName, "carrierName", order.carrierName)
+
+    if (vendorName?.name === "SMARTSHIP") {
+      const smartshipToken = await getSmartShipToken();
+      if (!smartshipToken) return res.status(200).send({ valid: false, message: "Smartship ENVs not found" });
+
+      const shipmentAPIConfig = { headers: { Authorization: smartshipToken } };
+      const requestBody = {
+        orders: [
+          {
+            // request_order_id: 10977589,   // Yes, if client_order_reference_id not provied
+            action_id: type === "re-attempt" ? 1 : 2,   // 1 --> reattempt, 2 --> rto
+            names: name,
+            phone: contact,
+            comments: comment,
+            next_attempt_date: format(rescheduleDate, "yyyy-MM-dd"),
+            client_order_reference_id: [order.client_order_reference_id],
+            address: address,
+          }
+        ],
+
+      };
+
+      console.log(requestBody, "requestBody[SMARTSHIP]")
+
+      try {
+        const externalAPIResponse = await axios.post(
+          config.SMART_SHIP_API_BASEURL + APIs.ORDER_REATTEMPT,
+          requestBody,
+          shipmentAPIConfig
+        );
+
+        if (externalAPIResponse.data.status === "403") {
+          return res.status(500).send({ valid: false, message: "Smartships ENVs expired" });
         }
-      ],
 
-    };
+        const order_reattempt_details = externalAPIResponse?.data?.data;
+        if (order_reattempt_details?.failure) {
+          return res.status(200).send({ valid: false, message: "Incomplete route", order_reattempt_details });
+        } else {
+          return res.status(200).send({ valid: true, message: "Order reattempt request generated", order_reattempt_details });
+        }
+        await updateOrderStatus(order._id, NDR, SMARTSHIP_ORDER_REATTEMPT_DESCRIPTION);
+        return res.status(200).send({ valid: true, message: "Order reattempt request generated" });
 
-    try {
-      const externalAPIResponse = await axios.post(
-        config.SMART_SHIP_API_BASEURL + APIs.ORDER_REATTEMPT,
-        requestBody,
-        shipmentAPIConfig
-      );
+      } catch (error) {
+        console.log(error, "error")
+        return next(error);
+      }
+    }
+    else if (vendorName?.name === "SHIPROCKET") {
+      const shiprocketToken = await getShiprocketToken();
 
-      if (externalAPIResponse.data.status === "403") {
-        return res.status(500).send({ valid: false, message: "Smartships ENVs expired" });
+      console.log(type, comment, "type, comment")
+
+      interface OrderReattemptPayload {
+        action: "fake-attempt" | "re-attempt" | "return";
+        comment?: string;
       }
 
-      const order_reattempt_details = externalAPIResponse.data?.data;
-
-      if (order_reattempt_details?.failure) {
-        return res.status(200).send({ valid: false, message: "Incomplete route", order_reattempt_details });
-      } else {
-        return res.status(200).send({ valid: true, message: "Order reattempt request generated", order_reattempt_details });
+      const orderReattemptPayload: OrderReattemptPayload = {
+        action: type,
+        comment: comment,
       }
+      try {
+        const schduleRes = await axios.post(config.SHIPROCKET_API_BASEURL + APIs.SHIPROCKET_ORDER_NDR + `/${order.awb}/action`, orderReattemptPayload, {
+          headers: {
+            Authorization: shiprocketToken,
+          },
+        });
 
+        console.log(schduleRes.data, "schduleRes.data[SHIPROCKET]");
 
-    } catch (error) {
-      return next(error);
+        await updateOrderStatus(order._id, NDR, SMARTSHIP_ORDER_REATTEMPT_DESCRIPTION);
+        return res.status(200).send({ valid: true, message: "Order reattempt request generated" });
+      } catch (error) {
+        console.log(error, "error")
+        return next(error);
+      }
     }
+  } catch (error) {
+    return next(error);
   }
-  else if (vendorType === "SR") {
-    const shiprocketToken = await getShiprocketToken();
-
-
-    interface OrderReattemptPayload {
-      action: "fake-attempt" | "re-attempt" | "return";
-      comment?: string;
-    }
-
-    const orderReattemptPayload: OrderReattemptPayload = {
-      action: "re-attempt",
-      comment: "",
-    }
-    try {
-      const schduleRes = await axios.post(config.SHIPROCKET_API_BASEURL + APIs.SHIPROCKET_ORDER_NDR + `/${order.awb}/action`, orderReattemptPayload, {
-        headers: {
-          Authorization: shiprocketToken,
-        },
-      });
-
-    } catch (error) {
-      return next(error);
-    }
-  }
-
-  order.bucket = NDR;
-  order.orderStages.push({
-    stage: SMARTSHIP_ORDER_REATTEMPT_STATUS,
-    action: SMARTSHIP_ORDER_REATTEMPT_DESCRIPTION,
-    stageDateTime: new Date(),
-  });
-
-  await order.save();
 }
 
 /**
