@@ -102,6 +102,7 @@ export const createB2COrder = async (req: ExtendedRequest, res: Response, next: 
   const data = {
     sellerId: req.seller?._id,
     bucket: NEW,
+    client_order_reference_id: body?.order_reference_id,
     orderStages: [{ stage: NEW_ORDER_STATUS, stageDateTime: new Date(), action: NEW_ORDER_DESCRIPTION }],
     pickupAddress: body?.pickupAddress,
     productId: savedProduct._id,
@@ -430,11 +431,12 @@ export const getCourier = async (req: ExtendedRequest, res: Response, next: Next
   const shiprocketToken = await getShiprocketToken();
   if (!shiprocketToken) return res.status(200).send({ valid: false, message: "Invalid token" });
 
+  console.log("orderDetails", orderDetails?.pickupAddress?.name,)
 
   const orderPayload = {
-    "order_id": orderDetails?.order_reference_id,
+    "order_id": orderDetails?.client_order_reference_id,
     "order_date": format(orderDetails?.order_invoice_date, 'yyyy-MM-dd HH:mm'),
-    "pickup_location": orderDetails?.name,
+    "pickup_location": orderDetails?.pickupAddress?.name,
     // "channel_id": "shopify",
     // "comment": "Reseller: M/s Goku",
     "billing_customer_name": orderDetails?.customerDetails.get("name"),
@@ -467,10 +469,10 @@ export const getCourier = async (req: ExtendedRequest, res: Response, next: Next
     ],
     "payment_method": orderDetails?.payment_mode === 0 ? "Prepaid" : "COD",
     "sub_total": Number(orderDetails.productId?.taxable_value),
-    "length": orderDetails?.orderBoxLength,
-    "breadth": orderDetails?.orderBoxWidth,
-    "height": orderDetails?.orderBoxHeight,
-    "weight": orderDetails?.orderWeight,
+    "length": 20,
+    "breadth": 10,
+    "height": 10,
+    "weight": 0.5,
   };
 
   try {

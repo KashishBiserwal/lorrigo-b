@@ -686,7 +686,7 @@ export function getShiprocketBucketing(status: number) {
     10: { bucket: RTO, description: "RTO Delivered" },
     12: { bucket: LOST_DAMAGED, description: "Lost" },
     14: { bucket: RTO, description: "RTO Acknowledged" },
-    16: { bucket: RTO, description: "Cancellation Requested" },
+    16: { bucket: CANCELED, description: "Cancellation Requested" },
     17: { bucket: IN_TRANSIT, description: "Out For Delivery" },
     18: { bucket: IN_TRANSIT, description: "In Transit" },
     21: { bucket: NDR, description: "Undelivered" },
