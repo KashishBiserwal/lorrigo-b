@@ -6,7 +6,13 @@ import axios from "axios";
 import config from "../utils/config";
 import APIs from "../utils/constants/third_party_apis";
 import EnvModel from "../models/env.model";
-import { getPincodeDetails, getShiprocketToken, getSmartShipToken, isValidPayload, validatePhone } from "../utils/helpers";
+import {
+  getPincodeDetails,
+  getShiprocketToken,
+  getSmartShipToken,
+  isValidPayload,
+  validatePhone,
+} from "../utils/helpers";
 import Logger from "../utils/logger";
 
 // FIXME smartship doesn't expect the hub with same address is the address mateches with some other address hub would not be created.
@@ -92,8 +98,8 @@ export const createHub = async (req: ExtendedRequest, res: Response, next: NextF
     city: city,
     state: state,
     country: "India",
-    pin_code: pincode
-  }
+    pin_code: pincode,
+  };
 
   let smartShipResponse;
   let shiprocketResponse;
@@ -103,6 +109,8 @@ export const createHub = async (req: ExtendedRequest, res: Response, next: NextF
       smartshipApiBody,
       smartshipAPIconfig
     );
+    console.log('smartShipResponse', smartShipResponse.data);
+    
 
     shiprocketResponse = await axios.post(
       config.SHIPROCKET_API_BASEURL + APIs.CREATE_PICKUP_LOCATION,
@@ -110,13 +118,9 @@ export const createHub = async (req: ExtendedRequest, res: Response, next: NextF
       shiprocketAPIconfig
     );
     console.log(shiprocketResponse.data, "shiprocketResponse");
-    
-    
-    
-    
   } catch (err) {
     // @ts-ignore
-    console.log(err, err?.response?.data?.errors, err?.data, "err")
+    console.log(err, err?.response?.data?.errors, err?.data, "err");
     return next(err);
   }
 
@@ -227,7 +231,7 @@ export const getCityDetails = async (req: ExtendedRequest, res: Response, next: 
     city: pincodeDetails?.District,
     state: pincodeDetails?.StateName,
   });
-}
+};
 
 // FIXME fix update hub when smartship isnt' login
 /*
@@ -273,70 +277,85 @@ export const updateHub = async (req: ExtendedRequest, res: Response, next: NextF
   if (hubData === null) return res.status(200).send({ valid: false, message: "Hub not found" });
 
   const { hub_id, name, contactPersonName, phone, pincode, city, state, address1, address2, delivery_type_id } = hubData;
-
-  const smartshipToken = await getSmartShipToken();
-  if (!smartshipToken) return res.status(500).send({ valid: false, message: "SMARTSHIP envs not found" });
-
-  if (body?.pincode) {
-    const pincodeDetails = await getPincodeDetails(Number(body?.pincode));
-    body.city = pincodeDetails?.District;
-    body.state = pincodeDetails?.StateName;
-  }
-
-  const smartshipAPIconfig = { headers: { Authorization: smartshipToken } };
-  const smartshipAPIBody = {
-    hub_id,
-    hub_name: name,
-    hub_phone: phone,
-    contactPersonName,  ///
-    pincode,
-    city,
-    state,
-    address1,
-    address2,
-    delivery_type_id,
-    ...body,
-  };
-
-  // hit smartship api
-  const response = await axios.post(
-    config.SMART_SHIP_API_BASEURL + APIs.HUB_UPDATE,
-    smartshipAPIBody,
-    smartshipAPIconfig
-  );
-  const smartShipResponseData: SMARTSHIP_UPDATE_DATA = response.data;
-
-  if (!smartShipResponseData.status) {
-    return res.status(200).send({
-      valid: false,
-      message: "Failed to update",
-    });
-  }
+  
   try {
-    const updatedDocuments = await HubModel.findByIdAndUpdate(
-      hubData._id,
-      {
-        name: smartshipAPIBody.hub_name,
-        phone: smartshipAPIBody.hub_phone,
-        pincode: smartshipAPIBody.pincode,
-        contactPersonName: smartshipAPIBody.contactPersonName,
-        city: smartshipAPIBody.city,
-        state: smartshipAPIBody.state,
-        address1: smartshipAPIBody.address1,
-        address2: smartshipAPIBody.address2,
-        delivery_type_id: smartshipAPIBody.delivery_type_id,
-      },
-      { new: true }
+    const updatedHub = await HubModel.findOneAndUpdate(
+      { _id: hubId, sellerId: sellerId },
+      body, 
+      { new: true, upsert: true } 
     );
 
     return res.status(200).send({
       valid: true,
-      message: "Hub data updated successfully",
-      hub: updatedDocuments,
+      message: "Hub updated successfully",
+      hub: updatedHub,
     });
   } catch (err) {
     return next(err);
   }
+  // const smartshipToken = await getSmartShipToken();
+  // if (!smartshipToken) return res.status(500).send({ valid: false, message: "SMARTSHIP envs not found" });
+
+  // if (body?.pincode) {
+  //   const pincodeDetails = await getPincodeDetails(Number(body?.pincode));
+  //   body.city = pincodeDetails?.District;
+  //   body.state = pincodeDetails?.StateName;
+  // }
+
+  // const smartshipAPIconfig = { headers: { Authorization: smartshipToken } };
+  // const smartshipAPIBody = {
+  //   hub_id,
+  //   hub_name: name,
+  //   hub_phone: phone,
+  //   contactPersonName, ///
+  //   pincode,
+  //   city,
+  //   state,
+  //   address1,
+  //   address2,
+  //   delivery_type_id,
+  //   ...body,
+  // };
+
+  // // hit smartship api
+  // const response = await axios.put(    //////////////////put ????
+  //   config.SMART_SHIP_API_BASEURL + APIs.HUB_UPDATE,
+  //   smartshipAPIBody,
+  //   smartshipAPIconfig
+  // );
+  // const smartShipResponseData: SMARTSHIP_UPDATE_DATA = response.data;
+
+  // if (!smartShipResponseData.status) {
+  //   return res.status(200).send({
+  //     valid: false,
+  //     message: "Failed to update",
+  //   });
+  // }
+  // try {
+  //   const updatedDocuments = await HubModel.findByIdAndUpdate(
+  //     hubData._id,
+  //     {
+  //       name: smartshipAPIBody.hub_name,
+  //       phone: smartshipAPIBody.hub_phone,
+  //       pincode: smartshipAPIBody.pincode,
+  //       contactPersonName: smartshipAPIBody.contactPersonName,
+  //       city: smartshipAPIBody.city,
+  //       state: smartshipAPIBody.state,
+  //       address1: smartshipAPIBody.address1,
+  //       address2: smartshipAPIBody.address2,
+  //       delivery_type_id: smartshipAPIBody.delivery_type_id,
+  //     },
+  //     { new: true }
+  //   );
+
+  //   return res.status(200).send({
+  //     valid: true,
+  //     message: "Hub data updated successfully",
+  //     hub: updatedDocuments,
+  //   });
+  // } catch (err) {
+  //   return next(err);
+  // }
 };
 
 export const deleteHub = async (req: ExtendedRequest, res: Response, next: NextFunction) => {

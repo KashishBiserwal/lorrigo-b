@@ -522,7 +522,7 @@ export const getSpecificOrder = async (req: ExtendedRequest, res: Response, next
   const order = await B2COrderModel.findOne({ _id: orderId, sellerId: req.seller?._id }).populate(["pickupAddress", "productId"]).lean();
 
   return !order
-    ? res.status(200).send({ valid: false, message: "So such order found." })
+    ? res.status(200).send({ valid: false, message: "No such order found." })
     : res.status(200).send({ valid: true, order: order });
 };
 

@@ -16,6 +16,7 @@ import shipmentRouter from "./routes/shipment.routes";
 import sellerRouter from "./routes/seller.routes";
 import runCron, { CONNECT_SHIPROCKET, CONNECT_SMARTR, CONNECT_SMARTSHIP, trackOrder_Smartship } from "./utils/cronjobs";
 import Logger from "./utils/logger";
+import adminRouter from "./routes/admin.routes";
 
 app.use(cors({ origin: "*" }));
 
@@ -62,6 +63,8 @@ app.use("/api/hub", AuthMiddleware, hubRouter);
 app.use("/api/order", AuthMiddleware, orderRouter);
 //@ts-ignore
 app.use("/api/shipment", AuthMiddleware, shipmentRouter);
+//@ts-ignore
+app.use("/api/admin", AuthMiddleware, adminRouter);
 
 app.use(ErrorHandler);
 app.use("*", (req: Request, res: Response) => {

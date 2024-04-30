@@ -12,14 +12,22 @@ export const getSeller = async (req: ExtendedRequest, res: Response, next: NextF
   return res.status(200).send({ valid: true, seller });
 };
 
+
+
 export const updateSeller = async (req: ExtendedRequest, res: Response, next: NextFunction) => {
-  const body = req.body;
+  let body = req.body;
   const sellerId = req.seller._id;
-
+  let logo = req.file?.path;
+  logo = logo?.replace("uploads", "");
   if (body?.password) return res.status(200).send({ valid: false, message: "Invalid payload" });
+ const companyProfile = JSON.parse(JSON.parse(body?.companyProfile));
+ console.log(companyProfile);
+ companyProfile.logo = logo;
+ body.companyProfile = companyProfile;
+ console.log(companyProfile);
 
-  try {
-    const updatedSeller = await SellerModel.findByIdAndUpdate(sellerId, { ...body }, { new: true }).select([
+  try { 
+    const updatedSeller = await SellerModel.findByIdAndUpdate(sellerId, { ...body }, { new: true }).select([  
       "-__v",
       "-password",
       "-margin",
@@ -34,6 +42,34 @@ export const updateSeller = async (req: ExtendedRequest, res: Response, next: Ne
     return next(err);
   }
 };
+
+export const uploadKycDocs = async (req: ExtendedRequest, res: Response, next: NextFunction) => {
+  let body = req.body;
+  const sellerId = req.seller._id;
+  let logo = req.file?.path;
+  logo = logo?.replace("uploads", "");
+  if (body?.password) return res.status(200).send({ valid: false, message: "Invalid payload" });
+ const companyProfile = JSON.parse(JSON.parse(body?.companyProfile));
+ companyProfile.logo = logo;
+ body.companyProfile = companyProfile;
+
+  try { 
+    const updatedSeller = await SellerModel.findByIdAndUpdate(sellerId, { ...body }, { new: true }).select([  
+      "-__v",
+      "-password",
+      "-margin",
+    ]);
+
+    return res.status(200).send({
+      valid: true,
+      message: "updated success",
+      seller: updatedSeller,
+    });
+  } catch (err) {
+    return next(err);
+  }
+};
+
 export const deleteSeller = async (req: ExtendedRequest, res: Response, next: NextFunction) => {
   const seller = req.seller;
   const sellerId = seller._id;
